@@ -2,3 +2,4 @@ streamlit
 requests
 google-api-python-client
 moviepy==1.0.3
+google-generativeai
