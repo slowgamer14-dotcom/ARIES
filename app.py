@@ -43,4 +43,28 @@ if prompt := st.chat_input("Como posso ajudar hoje?"):
             st.markdown(resposta_ia)
             st.session_state.messages.append({"role": "assistant", "content": resposta_ia})
         except Exception as e:
+
             st.error(f"Erro ao conectar: {e}")
+
+import streamlit as st
+import googleapiclient.discovery
+
+if st.button("Consultar Canal Laica 1"):
+    try:
+        api_key = st.secrets["YOUTUBE_API_KEY"]
+        youtube = googleapiclient.discovery.build("youtube", "v3", developerKey=api_key)
+
+        # Busca dados do canal
+        request = youtube.channels().list(part="statistics,snippet", forHandle="@Laica1")
+        response = request.execute()
+
+        canal = response['items'][0]
+        nome = canal['snippet']['title']
+        subs = canal['statistics']['subscriberCount']
+        views = canal['statistics']['viewCount']
+
+        st.success(f"Conectado ao canal: {nome}")
+        st.metric("Inscritos", subs)
+        st.metric("Visualizações Totais", views)
+    except Exception as e:
+        st.error(f"Erro ao conectar: {e}")
