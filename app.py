@@ -3,117 +3,103 @@ import requests
 import googleapiclient.discovery
 import googleapiclient.http
 from moviepy.editor import VideoFileClip
+import google.generativeai as genai
 import os
 import io
+import json
+import time
 
-# 1. Configurações da Página
+# 1. Configurações de Estilo e Página
 st.set_page_config(page_title="Aries AI - LikaON Empress", page_icon="♈", layout="wide")
 
-# --- LINKS DAS IMAGENS (RAW) ---
-url_fundo = "https://raw.githubusercontent.com/slowgamer14-dotcom/ARIES/main/fundo.jpg.png"
-url_sidebar = "https://raw.githubusercontent.com/slowgamer14-dotcom/ARIES/main/sidebar.jpg.png"
+# [Mantém aqui o teu CSS Neon das versões anteriores]
 
-# 2. Visual Neon Aries (CSS)
-st.markdown(f"""
-    <style>
-    .stApp {{ background-image: url("{url_fundo}"); background-size: cover; background-attachment: fixed; }}
-    [data-testid="stSidebar"] {{ background-image: url("{url_sidebar}"); background-size: cover; border-right: 2px solid #ff4b4b; }}
-    .stChatMessage {{ background-color: rgba(14, 17, 23, 0.85) !important; border-radius: 15px; border: 1px solid #ff4b4b; margin-bottom: 10px; }}
-    .stMetric {{ background-color: rgba(30, 37, 46, 0.9); padding: 15px; border-radius: 10px; border-left: 5px solid #ff4b4b; }}
-    div.stButton > button {{ background-color: #ff4b4b; color: white; border-radius: 20px; box-shadow: 0 0 10px #ff4b4b; width: 100%; font-weight: bold; transition: 0.3s; }}
-    div.stButton > button:hover {{ transform: scale(1.02); background-color: #ff3333; }}
-    </style>
-    """, unsafe_allow_html=True)
-
-# 3. Chaves de Segurança
+# 2. Configuração das APIs
 try:
     CHAVE_GEMINI = st.secrets["GEMINI_API_KEY"]
-    CHAVE_YOUTUBE = st.secrets["YOUTUBE_API_KEY"]
     CHAVE_DRIVE = st.secrets["GOOGLE_DRIVE_API_KEY"]
-except Exception:
-    st.error("⚠️ Verifique as chaves GEMINI, YOUTUBE e DRIVE nos Secrets!")
+    genai.configure(api_key=CHAVE_GEMINI)
+except:
+    st.error("Erro: Chaves de API não encontradas nos Secrets.")
 
-MODELO = "gemini-2.5-flash"
-INSTRUCAO = "Seu nome é Aries, mentora do canal LikaON. Você é sofisticada, direta e focada em gameplay e mistérios."
+# --- INTERFACE ---
+st.title("♈ Aries AI - Editora Autónoma 2.5 Flash")
 
-# --- SIDEBAR: ANALYTICS ---
-with st.sidebar:
-    st.title("📊 Painel LikaON")
-    if st.button("🔄 Sincronizar Analytics"):
-        try:
-            yt = googleapiclient.discovery.build("youtube", "v3", developerKey=CHAVE_YOUTUBE)
-            r = yt.channels().list(part="statistics", forHandle="@LikaON3").execute()
-            if r.get('items'):
-                s = r['items'][0]['statistics']
-                st.session_state.inscritos, st.session_state.views = s['subscriberCount'], s['viewCount']
-                st.success("Métricas OK!")
-            else: st.warning("Canal não encontrado.")
-        except: st.error("Erro na API do YouTube.")
-    
-    if 'inscritos' in st.session_state:
-        st.metric("Inscritos", f"{int(st.session_state.inscritos):,}")
-        st.metric("Total Views", f"{int(st.session_state.views):,}")
-    
-    st.markdown("---")
-    st.caption("Aries v2.5 Flash | Edição Cloud")
+tab1, tab2 = st.tabs(["💬 Estratégia", "🤖 Edição por Transcrição"])
 
-# --- CONTEÚDO PRINCIPAL ---
-st.title("♈ Aries AI - Central de Comando")
-tab1, tab2 = st.tabs(["💬 Chat Estratégico", "☁️ Editor Google Drive"])
-
-# ABA 1: CHAT
-with tab1:
-    if "messages" not in st.session_state: st.session_state.messages = []
-    for m in st.session_state.messages:
-        with st.chat_message(m["role"]): st.markdown(m["content"])
-
-    if p := st.chat_input("Fale com a Aries..."):
-        st.session_state.messages.append({"role": "user", "content": p})
-        with st.chat_message("user"): st.markdown(p)
-        
-        # Linha 78 Corrigida aqui:
-        url_api = f"https://generativelanguage.googleapis.com/v1beta/models/{MODELO}:generateContent?key={CHAVE_GEMINI}"
-        payload = {
-            "contents": [{"role": "user" if m["role"] == "user" else "model", "parts": [{"text": m["content"]}]} for m in st.session_state.messages],
-            "system_instruction": {"parts": [{"text": INSTRUCAO}]}
-        }
-        with st.chat_message("assistant"):
-            try:
-                res = requests.post(url_api, json=payload).json()
-                txt = res['candidates'][0]['content']['parts'][0]['text']
-                st.markdown(txt)
-                st.session_state.messages.append({"role": "assistant", "content": txt})
-            except: st.error("Erro ao conectar com a Aries.")
-
-# ABA 2: EDITOR DRIVE
 with tab2:
-    st.subheader("🎞️ Editor LikaON Cloud")
-    file_id = st.text_input("ID do vídeo no Drive:")
-    
-    col1, col2 = st.columns(2)
-    s_t = col1.number_input("Início (seg)", min_value=0, value=0)
-    e_t = col2.number_input("Fim (seg)", min_value=1, value=10)
+    st.subheader("🎙️ Modo 'Ouvir e Cortar'")
+    st.write("A Aries vai analisar o áudio da tua gameplay e decidir o melhor clipe.")
 
-    if st.button("🚀 Processar Corte"):
-        if file_id:
-            with st.spinner("Aries está operando..."):
+    id_drive = st.text_input("ID do vídeo no Google Drive:")
+    instrucao_ia = st.text_input("O que a Aries deve procurar?", placeholder="Ex: 'Corta o momento em que eu encontro o segredo' ou 'Corta a minha reação de susto'")
+
+    if st.button("🚀 Aries, Assume o Controlo"):
+        if id_drive:
+            with st.spinner("1. A descarregar e a extrair áudio..."):
+                # Download do Drive
+                drive_service = googleapiclient.discovery.build('drive', 'v3', developerKey=CHAVE_DRIVE)
+                request = drive_service.files().get_media(fileId=id_drive)
+                
+                video_path = "raw_video.mp4"
+                audio_path = "raw_audio.mp3"
+                
+                with io.FileIO(video_path, 'wb') as fh:
+                    downloader = googleapiclient.http.MediaIoBaseDownload(fh, request)
+                    done = False
+                    while not done:
+                        _, done = downloader.next_chunk()
+
+                # Extração do Áudio
+                video_full = VideoFileClip(video_path)
+                video_full.audio.write_audiofile(audio_path)
+
+            with st.spinner("2. Aries a processar o áudio (IA)..."):
+                # Upload do áudio para a File API do Gemini
+                sample_file = genai.upload_file(path=audio_path)
+                
+                # Aguarda o processamento do ficheiro pela Google
+                while sample_file.state.name == "PROCESSING":
+                    time.sleep(2)
+                    sample_file = genai.get_file(sample_file.name)
+
+                # Prompt para a IA decidir o corte
+                model = genai.GenerativeModel("gemini-1.5-flash")
+                prompt = (
+                    f"Analise este áudio de gameplay. Com base no pedido: '{instrucao_ia}', "
+                    "identifique o início e o fim (em segundos) do momento mais relevante. "
+                    "Responda estritamente em JSON: {'inicio': X, 'fim': Y, 'motivo': 'explicação'}"
+                )
+                
+                response = model.generate_content([sample_file, prompt])
+                
+                # Limpa o ficheiro da API da Google após uso
+                genai.delete_file(sample_file.name)
+                
                 try:
-                    drive_service = googleapiclient.discovery.build('drive', 'v3', developerKey=CHAVE_DRIVE)
-                    request = drive_service.files().get_media(fileId=file_id)
-                    with io.FileIO('temp.mp4', 'wb') as fh:
-                        downloader = googleapiclient.http.MediaIoBaseDownload(fh, request)
-                        done = False
-                        while not done:
-                            status, done = downloader.next_chunk()
-                    
-                    with VideoFileClip('temp.mp4') as video:
-                        clipe = video.subclip(s_t, e_t)
-                        clipe.write_videofile("final.mp4", codec="libx264", audio_codec="aac", fps=24, preset="ultrafast")
-                    
-                    st.video("final.mp4")
-                    with open("final.mp4", "rb") as f:
-                        st.download_button("📥 Baixar Vídeo", f, "gameplay_likaon.mp4")
-                    os.remove('temp.mp4')
-                except Exception as e: st.error(f"Erro: {e}")
-        else: st.warning("Insira o ID do arquivo.")
+                    # Extração do JSON da resposta
+                    res_text = response.text.replace("```json", "").replace("```", "").strip()
+                    decisao = json.loads(res_text)
+                    st.info(f"✨ Aries decidiu: {decisao['motivo']}")
+                    st.write(f"⏱️ Corte: {decisao['inicio']}s até {decisao['fim']}s")
+                except:
+                    st.error("Erro no julgamento da IA. A usar corte padrão.")
+                    decisao = {"inicio": 0, "fim": 20}
+
+            with st.spinner("3. A renderizar o teu clipe..."):
+                clipe = video_full.subclip(decisao['inicio'], decisao['fim'])
+                output_path = "clipe_aries.mp4"
+                clipe.write_videofile(output_path, codec="libx264", audio_codec="aac", preset="ultrafast")
+                
+                st.video(output_path)
+                with open(output_path, "rb") as f:
+                    st.download_button("📥 Baixar Clipe da Aries", f, "likaon_ai_edit.mp4")
+                
+                # Limpeza de ficheiros locais
+                video_full.close()
+                os.remove(video_path)
+                os.remove(audio_path)
+        else:
+            st.warning("Insere o ID do Drive para a Aries poder trabalhar.")
+
 
