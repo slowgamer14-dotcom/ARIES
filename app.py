@@ -31,9 +31,13 @@ st.markdown(f"""
 
 # 2. Funções de Voz (Edge-TTS Grátis)
 def aries_fala(texto):
-    """Gera áudio neural gratuito da Microsoft"""
+    """Gera áudio neural gratuito da Microsoft se a voz estiver ligada"""
+    # Verifica se o usuário permitiu a voz na sidebar
+    if not st.session_state.get("permitir_voz", True):
+        return
+        
     try:
-        VOZ = "pt-BR-FranciscaNeural" # Voz sofisticada e natural
+        VOZ = "pt-BR-FranciscaNeural"
         
         async def generate_voice():
             communicate = edge_tts.Communicate(texto, VOZ)
@@ -64,19 +68,22 @@ except:
 MODELO_25 = "gemini-2.5-flash"
 INSTRUCAO = "Você é Aries, mentora do canal LikaON. Sofisticada, direta e especialista em mistérios e Resident Evil."
 
+# --- SIDEBAR (CONTROLE DE VOZ) ---
+with st.sidebar:
+    st.title("📊 Painel de Controle")
+    # INTERRUPTOR DE VOZ
+    st.session_state.permitir_voz = st.checkbox("🎙️ Ativar Voz da Aries", value=True)
+    
+    st.markdown("---")
+    st.success("Gemini 2.5 Flash Ativo")
+    st.info("Status: Pronta para operar.")
+
 # --- INTERFACE PRINCIPAL ---
-st.title("♈ Aries AI - Central LikaON 2.5 Flash")
+st.title("♈ Aries AI - Central LikaON")
 
 tab1, tab2 = st.tabs(["💬 Chat Estratégico", "🤖 Edição Autônoma"])
 
-# --- SIDEBAR ---
-with st.sidebar:
-    st.title("📊 Status")
-    st.success("Voz Neural Ativa (Grátis)")
-    st.info("Foque no TAF de Bombeiro, eu cuido da edição.")
-    st.markdown("---")
-
-# ABA 1: CHAT COM VOZ NEURAL
+# ABA 1: CHAT
 with tab1:
     if "messages" not in st.session_state:
         st.session_state.messages = []
@@ -105,21 +112,21 @@ with tab1:
                     txt = res['candidates'][0]['content']['parts'][0]['text']
                     st.markdown(txt)
                     st.session_state.messages.append({"role": "assistant", "content": txt})
+                    # Só fala se o checkbox na sidebar estiver marcado
                     aries_fala(txt)
             except Exception as e:
-                st.error("Falha na conexão com os servidores da Aries.")
+                st.error("Falha na conexão.")
 
-# ABA 2: EDITOR AUTÔNOMO POR ÁUDIO
+# ABA 2: EDITOR (Lógica mantida)
 with tab2:
-    st.subheader("📽️ Corte por Transcrição (Gemini 2.5)")
+    st.subheader("📽️ Corte Inteligente via Áudio")
     id_drive = st.text_input("ID do Vídeo no Drive:")
-    ordem = st.text_input("O que a Aries deve buscar?", placeholder="Ex: 'Corte o momento do susto'")
+    ordem = st.text_input("O que devo buscar?")
 
-    if st.button("🚀 Iniciar Operação de Corte"):
+    if st.button("🚀 Iniciar Corte"):
         if id_drive:
-            with st.spinner("Aries está ouvindo o áudio da gameplay..."):
+            with st.spinner("Analisando..."):
                 try:
-                    # 1. Download do Drive
                     drive_service = googleapiclient.discovery.build('drive', 'v3', developerKey=CHAVE_DRIVE)
                     request = drive_service.files().get_media(fileId=id_drive)
                     with io.FileIO('raw.mp4', 'wb') as fh:
@@ -127,37 +134,30 @@ with tab2:
                         done = False
                         while not done: _, done = downloader.next_chunk()
 
-                    # 2. Extrair Áudio
                     video_full = VideoFileClip('raw.mp4')
                     video_full.audio.write_audiofile("raw.mp3")
 
-                    # 3. Análise Multimodal Gemini 2.5
                     sample_file = genai.upload_file(path="raw.mp3")
                     while sample_file.state.name == "PROCESSING":
                         time.sleep(2)
                         sample_file = genai.get_file(sample_file.name)
 
                     model = genai.GenerativeModel(MODELO_25)
-                    prompt_corte = f"Como editora especialista, analise este áudio. Pedido: {ordem}. Retorne JSON: {{'inicio': X, 'fim': Y, 'motivo': '...'}}"
-                    response = model.generate_content([sample_file, prompt_corte])
+                    response = model.generate_content([sample_file, f"Pedido: {ordem}. Retorne JSON {{'inicio': X, 'fim': Y, 'motivo': '...'}}"])
                     genai.delete_file(sample_file.name)
                     
                     decisao = json.loads(response.text.replace("```json", "").replace("```", ""))
                     st.success(f"Aries: {decisao['motivo']}")
 
-                    # 4. Executar Corte e Renderizar
                     clipe = video_full.subclip(decisao['inicio'], decisao['fim'])
                     clipe.write_videofile("final.mp4", codec="libx264", audio_codec="aac", preset="ultrafast")
-                    
                     st.video("final.mp4")
-                    with open("final.mp4", "rb") as f:
-                        st.download_button("📥 Baixar Clipe Editado", f, "likaon_edit.mp4")
                     
                     video_full.close()
-                    os.remove('raw.mp4')
-                    os.remove('raw.mp3')
+                    os.remove('raw.mp4'); os.remove('raw.mp3')
                 except Exception as e:
-                    st.error(f"Erro no processamento: {e}")
+                    st.error(f"Erro: {e}")
       
+
 
 
