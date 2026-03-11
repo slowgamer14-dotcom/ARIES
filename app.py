@@ -23,15 +23,15 @@ INSTRUCAO = (
     "Ajude o usuário a gerenciar o canal e a se preparar para o concurso de Bombeiro."
 )
 
-st.title("♈ Aries - Empresário Laica 1")
+st.title("♈ Aries - Empresário LikaON")
 
 # --- MÓDULO EMPRESÁRIO (SIDEBAR) ---
 with st.sidebar:
     st.header("📊 Painel do Canal")
-    if st.button("Consultar Stats do Laica 1"):
+    if st.button("Consultar Stats do LikaON"):
         try:
             youtube = googleapiclient.discovery.build("youtube", "v3", developerKey=CHAVE_YOUTUBE)
-            request = youtube.channels().list(part="statistics,snippet", forHandle="@Laica1")
+            request = youtube.channels().list(part="statistics,snippet", forHandle="@LikaON3")
             response = request.execute()
             
             if response['items']:
@@ -79,4 +79,5 @@ if prompt := st.chat_input("Como vamos crescer o Laica 1 hoje?"):
             st.session_state.messages.append({"role": "assistant", "content": resposta_ia})
         except Exception as e:
             st.error(f"Erro no Aries: {e}")
+
 
