@@ -1,4 +1,5 @@
 streamlit
 requests
 google-api-python-client
+moviepy
 
