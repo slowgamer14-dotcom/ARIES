@@ -1,6 +1,6 @@
 # No topo do seu app.py
 url_fundo = "https://github.com/slowgamer14-dotcom/ARIES/blob/61e3a5b5d747d1bb16acdfc9e6d04620c1dd5647/fundo.jpg.png"
-url_sidebar = ""
+url_sidebar = "https://github.com/slowgamer14-dotcom/ARIES/blob/5492be9a64d2a30486758ea143b466160540aa9e/sidebar.jpg.png"
 
 # O Streamlit aplicará o fundo através do st.markdownimport streamlit as st
 import requests
@@ -105,6 +105,7 @@ with tab2:
     st.subheader("🎬 Estúdio de Edição")
     st.info("O módulo MoviePy está pronto para processar seus clipes de GTA e Resident Evil.")
     # Aqui vai o código de upload que passamos antes
+
 
 
 
