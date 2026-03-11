@@ -1,5 +1,6 @@
 import streamlit as st
 import requests
+import googleapiclient.discovery
 
 # 1. Configurações da Página
 st.set_page_config(page_title="Aries AI - LikaON Empress", page_icon="♈", layout="wide")
@@ -37,39 +38,55 @@ st.markdown(f"""
         background-color: #ff4b4b; color: white; border-radius: 20px; 
         border: none; box-shadow: 0 0 15px #ff4b4b; width: 100%; transition: 0.3s;
     }}
-    div.stButton > button:hover {{ box-shadow: 0 0 25px #ff4b4b; transform: scale(1.02); }}
     </style>
     """, unsafe_allow_html=True)
 
 # 3. Chaves de Segurança
 try:
     CHAVE_GEMINI = st.secrets["GEMINI_API_KEY"]
+    CHAVE_YOUTUBE = st.secrets["YOUTUBE_API_KEY"]
 except Exception:
-    st.error("Erro: Adicione GEMINI_API_KEY nos Secrets do Streamlit.")
+    st.error("Erro: Verifique as chaves GEMINI_API_KEY e YOUTUBE_API_KEY nos Secrets.")
 
-MODELO = "gemini-2.5-flash"
+MODELO = "gemini-2.0-flash" # Use a 2.0 que é mais estável para evitar erros de 'quota'
 
-# Personalidade Expandida
+# --- PERSONALIDADE AJUSTADA (Menos rude, mais mentora) ---
 INSTRUCAO = (
-    "Seu nome é Aries. Você é a empresária e editora-chefe do canal LikaON. "
-    "Sua personalidade é feminina, decidida e sarcástica. "
-    "Você domina o nicho de mistérios, Resident Evil e GTA. "
-    "Analise dados de Analytics ou roteiros com rigor. Seja uma mentora de elite."
+    "Seu nome é Aries. Você é a mentora e empresária do canal LikaON. "
+    "Sua personalidade é elegante, decidida e inteligente. Você usa um tom sofisticado. "
+    "Você não é grosseira, mas é direta: quer ver o canal crescer. "
+    "Você entende tudo de GTA, Resident Evil e vídeos de mistério. "
+    "Trate o usuário como seu parceiro de negócios, incentivando-o a melhorar."
 )
 
-# --- SIDEBAR ---
+# --- SIDEBAR COM ANALYTICS DE VOLTA ---
 with st.sidebar:
     st.title("📊 Status do Canal")
-    st.info("Copie os dados do seu YouTube Studio e cole no chat para análise.")
+    if st.button("🔄 Atualizar Métricas"):
+        try:
+            youtube = googleapiclient.discovery.build("youtube", "v3", developerKey=CHAVE_YOUTUBE)
+            # Coloque o seu handle @ aqui
+            request = youtube.channels().list(part="statistics,snippet", forHandle="@LikaON3")
+            response = request.execute()
+            if response.get('items'):
+                canal = response['items'][0]
+                st.metric("Inscritos", f"{int(canal['statistics']['subscriberCount']):,}")
+                st.metric("Total de Views", f"{int(canal['statistics']['viewCount']):,}")
+                st.metric("Vídeos no Ar", canal['statistics']['videoCount'])
+                st.success("Dados sincronizados!")
+            else:
+                st.warning("Canal não encontrado. Verifique o @.")
+        except:
+            st.error("Erro ao acessar API do YouTube.")
+    
     st.markdown("---")
-    st.caption("Aries AI v2.5 - LikaON Empress")
+    st.caption("Aries AI v3.0 - LikaON Empress")
 
 # --- CONTEÚDO PRINCIPAL ---
 st.title("♈ Aries AI - Central de Comando")
 
 tab1, tab2 = st.tabs(["💬 Estratégia e Chat", "🎬 Script Lab"])
 
-# ABA 1: CHAT
 with tab1:
     if "messages" not in st.session_state:
         st.session_state.messages = []
@@ -78,39 +95,28 @@ with tab1:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    if prompt := st.chat_input("Fale com a Aries ou cole seus dados..."):
+    if prompt := st.chat_input("Como vamos crescer hoje?"):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODELO}:generateContent?key={CHAVE_GEMINI}"
-        
         payload = {
-            "contents": [
-                {"role": "user" if m["role"] == "user" else "model", "parts": [{"text": m["content"]}]} 
-                for m in st.session_state.messages
-            ],
+            "contents": [{"role": "user" if m["role"] == "user" else "model", "parts": [{"text": m["content"]}]} for m in st.session_state.messages],
             "system_instruction": {"parts": [{"text": INSTRUCAO}]},
-            "generationConfig": {"temperature": 0.8}
+            "generationConfig": {"temperature": 0.7}
         }
 
         with st.chat_message("assistant"):
             try:
                 response = requests.post(url, json=payload)
                 resultado = response.json()
-                if 'candidates' in resultado:
-                    resposta = resultado['candidates'][0]['content']['parts'][0]['text']
-                    st.markdown(resposta)
-                    st.session_state.messages.append({"role": "assistant", "content": resposta})
-                else:
-                    st.error(f"Erro na API: {resultado}")
-            except Exception as e:
-                st.error(f"Falha de conexão: {e}")
+                resposta = resultado['candidates'][0]['content']['parts'][0]['text']
+                st.markdown(resposta)
+                st.session_state.messages.append({"role": "assistant", "content": resposta})
+            except:
+                st.error("Aries está refletindo sobre a estratégia. Tente em instantes.")
 
-# ABA 2: ROTEIROS
 with tab2:
     st.subheader("🎬 Estúdio de Criação")
-    st.write("Precisa de uma ideia matadora para o canal de mistérios?")
-    if st.button("Gerar Gancho de Vídeo"):
-        st.success("Aries diz: Comece o vídeo revelando algo que o espectador achava que era verdade, mas é mentira.")
-
+    st.write("Foque nos vídeos de mistério. O público do RS adora uma boa história urbana.")
