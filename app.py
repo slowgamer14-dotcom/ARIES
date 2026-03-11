@@ -65,7 +65,7 @@ with st.sidebar:
 # --- CONTEÚDO PRINCIPAL ---
 st.title("✨ Aries AI - LikaON Empress")
 
-tab1, tab2, tab3 = st.tabs(["💬 Chat com Aries", "🎬 Editor de Vídeo",)
+tab1, tab2,= st.tabs(["💬 Chat com Aries", "🎬 Editor de Vídeo"])
 
 # ABA 1: CHAT
 with tab1:
@@ -101,4 +101,5 @@ with tab2:
     st.subheader("🎬 Estúdio de Edição")
     st.info("O módulo MoviePy está pronto para processar seus clipes de GTA e Resident Evil.")
     # Aqui vai o código de upload que passamos antes
+
 
