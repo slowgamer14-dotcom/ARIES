@@ -62,7 +62,7 @@ if prompt := st.chat_input("Como vamos crescer o LikaON hoje?"):
         st.markdown(prompt)
 
     # Chamada para o Google Gemini com verificação de erro
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODELO}:generateContent?key={CHAVE_GEMINI}"
+    url = f"https://generativelanguage.googleapis.com/v1/models/{MODELO}:generateContent?key={CHAVE_GEMINI}"
     payload = {
         "system_instruction": {"parts": {"text": INSTRUCAO}},
         "contents": [{"parts": [{"text": m["content"]} for m in st.session_state.messages]}]
@@ -83,6 +83,7 @@ if prompt := st.chat_input("Como vamos crescer o LikaON hoje?"):
                 st.error(f"A IA deu erro: {msg_erro}")
         except Exception as e:
             st.error(f"Erro de conexão: {e}")
+
 
 
 
