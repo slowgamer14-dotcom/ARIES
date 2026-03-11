@@ -63,9 +63,21 @@ if prompt := st.chat_input("Como vamos crescer o LikaON hoje?"):
 
     # Chamada para o Google Gemini com verificação de erro
     url = f"https://generativelanguage.googleapis.com/v1/models/{MODELO}:generateContent?key={CHAVE_GEMINI}"
+   # Novo formato de payload compatível com v1
     payload = {
-        "system_instruction": {"parts": {"text": INSTRUCAO}},
-        "contents": [{"parts": [{"text": m["content"]} for m in st.session_state.messages]}]
+        "contents": [
+            {
+                "role": "user",
+                "parts": [{"text": f"Instrução de Sistema: {INSTRUCAO}"}]
+            },
+            *[
+                {
+                    "role": "user" if m["role"] == "user" else "model",
+                    "parts": [{"text": m["content"]}]
+                } 
+                for m in st.session_state.messages
+            ]
+        ]
     }
 
     with st.chat_message("assistant"):
@@ -83,6 +95,7 @@ if prompt := st.chat_input("Como vamos crescer o LikaON hoje?"):
                 st.error(f"A IA deu erro: {msg_erro}")
         except Exception as e:
             st.error(f"Erro de conexão: {e}")
+
 
 
 
