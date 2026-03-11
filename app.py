@@ -5,7 +5,7 @@ import googleapiclient.discovery
 # 1. Configurações da Página
 st.set_page_config(page_title="Aries AI - LikaON Empress", page_icon="♈", layout="wide")
 
-# --- LINKS DAS IMAGENS (Certifique-se que os nomes no GitHub estão idênticos) ---
+# --- LINKS DAS IMAGENS (RAW) ---
 url_fundo = "https://raw.githubusercontent.com/slowgamer14-dotcom/ARIES/main/fundo.jpg.png"
 url_sidebar = "https://raw.githubusercontent.com/slowgamer14-dotcom/ARIES/main/sidebar.jpg.png"
 
@@ -30,10 +30,6 @@ st.markdown(f"""
         border: 1px solid rgba(255, 75, 75, 0.4);
         margin-bottom: 10px;
     }}
-    .stMetric {{ 
-        background-color: rgba(30, 37, 46, 0.9); 
-        padding: 15px; border-radius: 10px; border-left: 5px solid #ff4b4b; 
-    }}
     div.stButton > button:first-child {{
         background-color: #ff4b4b; color: white; border-radius: 20px; 
         border: none; box-shadow: 0 0 15px #ff4b4b; width: 100%; transition: 0.3s;
@@ -46,32 +42,45 @@ try:
     CHAVE_GEMINI = st.secrets["GEMINI_API_KEY"]
     CHAVE_YOUTUBE = st.secrets["YOUTUBE_API_KEY"]
 except Exception:
-    st.error("Erro: Verifique as chaves nos Secrets do Streamlit.")
+    st.error("Erro: Verifique as chaves GEMINI_API_KEY e YOUTUBE_API_KEY nos Secrets.")
 
-# --- MODELO GEMINI 2.5 FLASH OBRIGATÓRIO ---
+# --- MODELO GEMINI 2.5 FLASH ---
 MODELO = "gemini-2.5-flash"
 
 INSTRUCAO = (
     "Seu nome é Aries. Você é a mentora e empresária do canal LikaON. "
-    "Sua personalidade é feminina, sofisticada, decidida e estratégica. "
-    "Você é uma líder nata: não é rude, mas é direta e focada em métricas. "
-    "Você domina nichos de mistério, terror e games. "
-    "Seu objetivo é transformar o canal no maior do Brasil."
+    "Sua personalidade é sofisticada, decidida e estratégica. "
+    "Você domina o nicho de mistérios e games. Trate o usuário como um parceiro de elite."
 )
 
-# --- SIDEBAR (Analytics de volta) ---
+# --- SIDEBAR (Analytics) ---
 with st.sidebar:
     st.title("📊 Painel de Controle")
     if st.button("🔄 Sincronizar Analytics"):
         try:
             youtube = googleapiclient.discovery.build("youtube", "v3", developerKey=CHAVE_YOUTUBE)
-            # Ajuste o handle conforme necessário
             request = youtube.channels().list(part="statistics,snippet", forHandle="@LikaON3")
             response = request.execute()
             if response.get('items'):
                 canal = response['items'][0]
                 st.metric("Inscritos", f"{int(canal['statistics']['subscriberCount']):,}")
-                st.metric("Total de Views", f"{int(canal['statistics']['viewCount']):,}")
-                st.metric("Vídeos", canal['statistics']['videoCount'])
+                st.metric("Views", f"{int(canal['statistics']['viewCount']):,}")
             else:
-                st
+                st.warning("Canal não encontrado.")
+        except:
+            st.error("Erro na API do YouTube.")
+    
+    st.markdown("---")
+    st.caption("Aries AI v2.5 Flash")
+
+# --- CONTEÚDO PRINCIPAL ---
+st.title("✨ Aries AI - LikaON Empress")
+
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+if prompt :=
