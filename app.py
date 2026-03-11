@@ -12,8 +12,8 @@ try:
 except Exception as e:
     st.error("Erro: Verifique se GEMINI_API_KEY e YOUTUBE_API_KEY estão nos Secrets do Streamlit.")
 
-# MUDANÇA IMPORTANTE: Usando o modelo estável 1.5
-MODELO = "gemini-1.5-flash-latest" 
+# MODELO CORRETO PARA SUA CHAVE
+MODELO = "gemini-2.5-flash" 
 
 INSTRUCAO = (
     "Seu nome é Aries. Você é o empresário e editor do canal LikaON. "
@@ -30,7 +30,7 @@ with st.sidebar:
     if st.button("Consultar Stats do LikaON"):
         try:
             youtube = googleapiclient.discovery.build("youtube", "v3", developerKey=CHAVE_YOUTUBE)
-            # Ajustado para o seu novo handle @LikaON3
+            # Busca pelo handle oficial @LikaON3
             request = youtube.channels().list(part="statistics,snippet", forHandle="@LikaON3")
             response = request.execute()
             
@@ -52,46 +52,46 @@ with st.sidebar:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+# Exibe histórico
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
+# Entrada do Usuário
 if prompt := st.chat_input("Como vamos crescer o LikaON hoje?"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Chamada para o Google Gemini com verificação de erro
+    # URL correta para a versão 2.5
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODELO}:generateContent?key={CHAVE_GEMINI}"
-   # Novo formato de payload compatível com v1
+
+    # Payload formatado para aceitar Instrução de Sistema no 2.5
     payload = {
-    "system_instruction": {"parts": [{"text": INSTRUCAO}]},
-    "contents": [
-        {
-            "role": "user" if m["role"] == "user" else "model",
-            "parts": [{"text": m["content"]}]
-        } for m in st.session_state.messages
-    ]
-}
+        "system_instruction": {
+            "parts": [{"text": INSTRUCAO}]
+        },
+        "contents": [
+            {
+                "role": "user" if m["role"] == "user" else "model",
+                "parts": [{"text": m["content"]}]
+            } for m in st.session_state.messages
+        ]
+    }
 
     with st.chat_message("assistant"):
         try:
             response = requests.post(url, json=payload)
             resultado = response.json()
             
-            # Aqui resolve o erro de 'candidates'
             if 'candidates' in resultado and len(resultado['candidates']) > 0:
                 resposta_ia = resultado['candidates'][0]['content']['parts'][0]['text']
                 st.markdown(resposta_ia)
                 st.session_state.messages.append({"role": "assistant", "content": resposta_ia})
             else:
-                msg_erro = resultado.get('error', {}).get('message', 'Erro desconhecido')
+                msg_erro = resultado.get('error', {}).get('message', 'Erro na resposta da API')
                 st.error(f"A IA deu erro: {msg_erro}")
+                # Log para depuração se necessário
+                # st.write(resultado) 
         except Exception as e:
             st.error(f"Erro de conexão: {e}")
-
-
-
-
-
-
