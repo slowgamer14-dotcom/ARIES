@@ -3,7 +3,7 @@ import requests
 import googleapiclient.discovery
 
 # Configurações da Página
-st.set_page_config(page_title="Aries AI - Laica 1", page_icon="♈")
+st.set_page_config(page_title="Aries AI", page_icon="♈")
 
 # O JEITO CERTO: Puxar pelo nome que você salvou no Streamlit
 # Se você salvou como GEMINI_API_KEY lá nos Secrets, use assim:
@@ -13,7 +13,7 @@ try:
 except:
     st.error("Erro: As chaves API não foram encontradas nos Secrets do Streamlit.")
 
-MODELO = "gemini-1.5-flash" # Use o 1.5 que é mais estável para esse tipo de app
+MODELO = "gemini-2.5-flash" # Use o 1.5 que é mais estável para esse tipo de app
 
 # Estilo do Aries (Personalidade de Empresário e Editor)
 INSTRUCAO = (
@@ -79,5 +79,6 @@ if prompt := st.chat_input("Como vamos crescer o Laica 1 hoje?"):
             st.session_state.messages.append({"role": "assistant", "content": resposta_ia})
         except Exception as e:
             st.error(f"Erro no Aries: {e}")
+
 
 
