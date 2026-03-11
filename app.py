@@ -1,6 +1,5 @@
 import streamlit as st
 import requests
-import googleapiclient.discovery
 
 # 1. Configurações da Página
 st.set_page_config(page_title="Aries AI - LikaON Empress", page_icon="♈", layout="wide")
@@ -50,19 +49,18 @@ except Exception:
 
 MODELO = "gemini-2.5-flash"
 
-# Personalidade Expandida (Agora ela aceita analisar dados)
+# Personalidade Expandida
 INSTRUCAO = (
     "Seu nome é Aries. Você é a empresária e editora-chefe do canal LikaON. "
     "Sua personalidade é feminina, decidida e sarcástica. "
     "Você domina o nicho de mistérios, Resident Evil e GTA. "
-    "Se o usuário colar dados de Analytics ou roteiros, analise com rigor e dê ordens diretas "
-    "para melhorar o CTR e a retenção. Seja uma mentora de elite."
+    "Analise dados de Analytics ou roteiros com rigor. Seja uma mentora de elite."
 )
 
 # --- SIDEBAR ---
 with st.sidebar:
     st.title("📊 Status do Canal")
-    st.info("Copie os dados do seu YouTube Studio e cole no chat para a Aries analisar agora mesmo.")
+    st.info("Copie os dados do seu YouTube Studio e cole no chat para análise.")
     st.markdown("---")
     st.caption("Aries AI v2.5 - LikaON Empress")
 
@@ -71,7 +69,7 @@ st.title("♈ Aries AI - Central de Comando")
 
 tab1, tab2 = st.tabs(["💬 Estratégia e Chat", "🎬 Script Lab"])
 
-# ABA 1: CHAT INTELIGENTE
+# ABA 1: CHAT
 with tab1:
     if "messages" not in st.session_state:
         st.session_state.messages = []
@@ -80,12 +78,11 @@ with tab1:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    if prompt := st.chat_input("Cole seus dados ou tire uma dúvida com a Aries..."):
+    if prompt := st.chat_input("Fale com a Aries ou cole seus dados..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
-        # URL para Gemini 2.5
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODELO}:generateContent?key={CHAVE_GEMINI}"
         
         payload = {
@@ -106,13 +103,14 @@ with tab1:
                     st.markdown(resposta)
                     st.session_state.messages.append({"role": "assistant", "content": resposta})
                 else:
-                    st.error(f"Erro na Aries 2.5: {resultado}")
+                    st.error(f"Erro na API: {resultado}")
             except Exception as e:
                 st.error(f"Falha de conexão: {e}")
 
 # ABA 2: ROTEIROS
 with tab2:
-    st.subheader("🎬 Gerador de Ganchos (Hooks)")
-    st.write("Aries, como começo um vídeo de mistério hoje?")
-    if st.button("
+    st.subheader("🎬 Estúdio de Criação")
+    st.write("Precisa de uma ideia matadora para o canal de mistérios?")
+    if st.button("Gerar Gancho de Vídeo"):
+        st.success("Aries diz: Comece o vídeo revelando algo que o espectador achava que era verdade, mas é mentira.")
 
