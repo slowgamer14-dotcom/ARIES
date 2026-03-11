@@ -13,7 +13,7 @@ except Exception as e:
     st.error("Erro: Verifique se GEMINI_API_KEY e YOUTUBE_API_KEY estão nos Secrets do Streamlit.")
 
 # MUDANÇA IMPORTANTE: Usando o modelo estável 1.5
-MODELO = "gemini-1.5-flash" 
+MODELO = "gemini-1.5-flash-latest" 
 
 INSTRUCAO = (
     "Seu nome é Aries. Você é o empresário e editor do canal LikaON. "
@@ -62,23 +62,17 @@ if prompt := st.chat_input("Como vamos crescer o LikaON hoje?"):
         st.markdown(prompt)
 
     # Chamada para o Google Gemini com verificação de erro
-    url = f"https://generativelanguage.googleapis.com/v1/models/{MODELO}:generateContent?key={CHAVE_GEMINI}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODELO}:generateContent?key={CHAVE_GEMINI}"
    # Novo formato de payload compatível com v1
     payload = {
-        "contents": [
-            {
-                "role": "user",
-                "parts": [{"text": f"Instrução de Sistema: {INSTRUCAO}"}]
-            },
-            *[
-                {
-                    "role": "user" if m["role"] == "user" else "model",
-                    "parts": [{"text": m["content"]}]
-                } 
-                for m in st.session_state.messages
-            ]
-        ]
-    }
+    "system_instruction": {"parts": [{"text": INSTRUCAO}]},
+    "contents": [
+        {
+            "role": "user" if m["role"] == "user" else "model",
+            "parts": [{"text": m["content"]}]
+        } for m in st.session_state.messages
+    ]
+}
 
     with st.chat_message("assistant"):
         try:
@@ -95,6 +89,7 @@ if prompt := st.chat_input("Como vamos crescer o LikaON hoje?"):
                 st.error(f"A IA deu erro: {msg_erro}")
         except Exception as e:
             st.error(f"Erro de conexão: {e}")
+
 
 
 
