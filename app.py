@@ -5,11 +5,11 @@ import googleapiclient.discovery
 # 1. Configurações da Página
 st.set_page_config(page_title="Aries AI - LikaON Empress", page_icon="♈", layout="wide")
 
-# --- LINKS DAS IMAGENS ---
+# --- LINKS DAS IMAGENS (RAW) ---
 url_fundo = "https://raw.githubusercontent.com/slowgamer14-dotcom/ARIES/main/fundo.jpg.png"
 url_sidebar = "https://raw.githubusercontent.com/slowgamer14-dotcom/ARIES/main/sidebar.jpg.png"
 
-# 2. CSS Customizado (Corrigido)
+# 2. Visual Neon Aries (CSS)
 st.markdown(f"""
     <style>
     .stApp {{
@@ -21,14 +21,14 @@ st.markdown(f"""
     [data-testid="stSidebar"] {{
         background-image: url("{url_sidebar}");
         background-size: cover;
-        background-position: center;
         border-right: 2px solid #ff4b4b;
     }}
     .stChatMessage {{
         background-color: rgba(14, 17, 23, 0.85) !important;
         border-radius: 15px;
-        padding: 10px;
-        border: 1px solid rgba(255, 75, 75, 0.3);
+        padding: 15px;
+        border: 1px solid rgba(255, 75, 75, 0.4);
+        margin-bottom: 10px;
     }}
     .stMetric {{ 
         background-color: rgba(30, 37, 46, 0.9); 
@@ -42,48 +42,36 @@ st.markdown(f"""
     </style>
     """, unsafe_allow_html=True)
 
-# 3. Puxar as chaves dos Secrets
+# 3. Chaves de Segurança
 try:
     CHAVE_GEMINI = st.secrets["GEMINI_API_KEY"]
-    CHAVE_YOUTUBE = st.secrets["YOUTUBE_API_KEY"]
 except Exception:
-    st.error("Erro: Verifique as chaves nos Secrets do Streamlit.")
+    st.error("Erro: Adicione GEMINI_API_KEY nos Secrets do Streamlit.")
 
-# --- MODELO GEMINI 2.5 FLASH ---
 MODELO = "gemini-2.5-flash"
 
+# Personalidade Expandida (Agora ela aceita analisar dados)
 INSTRUCAO = (
     "Seu nome é Aries. Você é a empresária e editora-chefe do canal LikaON. "
-    "Sua personalidade é feminina, decidida, inteligente e um pouco sarcástica. "
-    "Você foca em resultados para YouTube e Instagram, entende de jogos de terror e GTA. "
-    "Seu tom é de uma mentora de sucesso: elegante e direta."
+    "Sua personalidade é feminina, decidida e sarcástica. "
+    "Você domina o nicho de mistérios, Resident Evil e GTA. "
+    "Se o usuário colar dados de Analytics ou roteiros, analise com rigor e dê ordens diretas "
+    "para melhorar o CTR e a retenção. Seja uma mentora de elite."
 )
 
 # --- SIDEBAR ---
 with st.sidebar:
-    st.title("📊 Painel LikaON")
-    if st.button("🔄 Consultar Estatísticas"):
-        try:
-            youtube = googleapiclient.discovery.build("youtube", "v3", developerKey=CHAVE_YOUTUBE)
-            request = youtube.channels().list(part="statistics,snippet", forHandle="@LikaON3")
-            response = request.execute()
-            if response.get('items'):
-                canal = response['items'][0]
-                st.metric("Inscritos", f"{int(canal['statistics']['subscriberCount']):,}")
-                st.metric("Total de Views", f"{int(canal['statistics']['viewCount']):,}")
-                st.metric("Vídeos", canal['statistics']['videoCount'])
-            else: st.warning("Canal não encontrado.")
-        except Exception: st.error("Erro na conexão YouTube.")
-    
+    st.title("📊 Status do Canal")
+    st.info("Copie os dados do seu YouTube Studio e cole no chat para a Aries analisar agora mesmo.")
     st.markdown("---")
-    st.caption("Aries AI - Versão Empress 2.5 Flash")
+    st.caption("Aries AI v2.5 - LikaON Empress")
 
 # --- CONTEÚDO PRINCIPAL ---
-st.title("✨ Aries AI - LikaON Empress")
+st.title("♈ Aries AI - Central de Comando")
 
-tab1, tab2 = st.tabs(["💬 Chat com Aries", "🎬 Editor de Vídeo"])
+tab1, tab2 = st.tabs(["💬 Estratégia e Chat", "🎬 Script Lab"])
 
-# ABA 1: CHAT
+# ABA 1: CHAT INTELIGENTE
 with tab1:
     if "messages" not in st.session_state:
         st.session_state.messages = []
@@ -92,17 +80,21 @@ with tab1:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    if prompt := st.chat_input("Como vamos dominar o YouTube hoje?"):
+    if prompt := st.chat_input("Cole seus dados ou tire uma dúvida com a Aries..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
+        # URL para Gemini 2.5
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODELO}:generateContent?key={CHAVE_GEMINI}"
         
         payload = {
-            "contents": [{"role": "user" if m["role"] == "user" else "model", "parts": [{"text": m["content"]}]} for m in st.session_state.messages],
+            "contents": [
+                {"role": "user" if m["role"] == "user" else "model", "parts": [{"text": m["content"]}]} 
+                for m in st.session_state.messages
+            ],
             "system_instruction": {"parts": [{"text": INSTRUCAO}]},
-            "generationConfig": {"temperature": 0.8, "maxOutputTokens": 2048}
+            "generationConfig": {"temperature": 0.8}
         }
 
         with st.chat_message("assistant"):
@@ -114,11 +106,13 @@ with tab1:
                     st.markdown(resposta)
                     st.session_state.messages.append({"role": "assistant", "content": resposta})
                 else:
-                    st.error(f"Erro na API: {resultado}")
+                    st.error(f"Erro na Aries 2.5: {resultado}")
             except Exception as e:
-                st.error(f"Erro de conexão: {e}")
+                st.error(f"Falha de conexão: {e}")
 
-# ABA 2: EDITOR
+# ABA 2: ROTEIROS
 with tab2:
-    st.subheader("🎬 Estúdio de Edição")
-    st.info("Módulo pronto para processar os vídeos do canal.")
+    st.subheader("🎬 Gerador de Ganchos (Hooks)")
+    st.write("Aries, como começo um vídeo de mistério hoje?")
+    if st.button("
+
