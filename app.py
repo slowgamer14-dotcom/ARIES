@@ -42,45 +42,4 @@ try:
     CHAVE_GEMINI = st.secrets["GEMINI_API_KEY"]
     CHAVE_YOUTUBE = st.secrets["YOUTUBE_API_KEY"]
 except Exception:
-    st.error("Erro: Verifique as chaves GEMINI_API_KEY e YOUTUBE_API_KEY nos Secrets.")
-
-# --- MODELO GEMINI 2.5 FLASH ---
-MODELO = "gemini-2.5-flash"
-
-INSTRUCAO = (
-    "Seu nome é Aries. Você é a mentora e empresária do canal LikaON. "
-    "Sua personalidade é sofisticada, decidida e estratégica. "
-    "Você domina o nicho de mistérios e games. Trate o usuário como um parceiro de elite."
-)
-
-# --- SIDEBAR (Analytics) ---
-with st.sidebar:
-    st.title("📊 Painel de Controle")
-    if st.button("🔄 Sincronizar Analytics"):
-        try:
-            youtube = googleapiclient.discovery.build("youtube", "v3", developerKey=CHAVE_YOUTUBE)
-            request = youtube.channels().list(part="statistics,snippet", forHandle="@LikaON3")
-            response = request.execute()
-            if response.get('items'):
-                canal = response['items'][0]
-                st.metric("Inscritos", f"{int(canal['statistics']['subscriberCount']):,}")
-                st.metric("Views", f"{int(canal['statistics']['viewCount']):,}")
-            else:
-                st.warning("Canal não encontrado.")
-        except:
-            st.error("Erro na API do YouTube.")
-    
-    st.markdown("---")
-    st.caption("Aries AI v2.5 Flash")
-
-# --- CONTEÚDO PRINCIPAL ---
-st.title("✨ Aries AI - LikaON Empress")
-
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
-
-if prompt :=
+    st.error("Erro: Verifique as chaves
