@@ -63,5 +63,63 @@ with tab1:
         with st.chat_message("user"): st.markdown(p)
         
         # Chamada API Gemini 2.5 Flash
-        url_api = f"
+        url_api = f"https://generativelanguage.googleapis.com/v1beta/models/{MODELO_25}:generateContent?key={CHAVE_GEMINI}"
+        payload = {
+            "contents": [{"role": "user" if m["role"] == "user" else "model", "parts": [{"text": m["content"]}]} for m in st.session_state.messages],
+            "system_instruction": {"parts": [{"text": "Você é Aries, mentora LikaON. Use o raciocínio do Gemini 2.5 para ser precisa."}]}
+        }
+        
+        with st.chat_message("assistant"):
+            try:
+                res = requests.post(url_api, json=payload).json()
+                if "error" in res:
+                    st.error(f"Erro Gemini 2.5: {res['error']['message']}")
+                else:
+                    txt = res['candidates'][0]['content']['parts'][0]['text']
+                    st.markdown(txt)
+                    st.session_state.messages.append({"role": "assistant", "content": txt})
+                    aries_fala(txt)
+            except Exception as e:
+                st.error(f"Falha de conexão: {e}")
+
+with tab2:
+    st.subheader("📽️ Corte Inteligente (Powered by 2.5 Flash)")
+    id_drive = st.text_input("ID do vídeo no Drive:")
+    ordem = st.text_input("O que a Aries deve buscar no áudio?")
+
+    if st.button("🚀 Iniciar Processamento 2.5"):
+        if id_drive:
+            with st.spinner("Gemini 2.5 analisando áudio e vídeo..."):
+                try:
+                    # Download e Extração (Mesma lógica estável de antes)
+                    drive_service = googleapiclient.discovery.build('drive', 'v3', developerKey=CHAVE_DRIVE)
+                    request = drive_service.files().get_media(fileId=id_drive)
+                    with io.FileIO('raw.mp4', 'wb') as fh:
+                        downloader = googleapiclient.http.MediaIoBaseDownload(fh, request)
+                        done = False
+                        while not done: _, done = downloader.next_chunk()
+
+                    video_full = VideoFileClip('raw.mp4')
+                    video_full.audio.write_audiofile("raw.mp3")
+                    
+                    # Gemini 2.5 File API
+                    sample_file = genai.upload_file(path="raw.mp3")
+                    while sample_file.state.name == "PROCESSING": time.sleep(2); sample_file = genai.get_file(sample_file.name)
+
+                    model = genai.GenerativeModel(MODELO_25)
+                    prompt = f"Como editora especialista, analise este áudio. Pedido: {ordem}. Retorne JSON: {{'inicio': X, 'fim': Y, 'motivo': '...'}}"
+                    response = model.generate_content([sample_file, prompt])
+                    genai.delete_file(sample_file.name)
+                    
+                    decisao = json.loads(response.text.replace("```json", "").replace("```", ""))
+                    st.success(f"Decisão da Aries 2.5: {decisao['motivo']}")
+
+                    clipe = video_full.subclip(decisao['inicio'], decisao['fim'])
+                    clipe.write_videofile("final.mp4", codec="libx264", audio_codec="aac", preset="ultrafast")
+                    st.video("final.mp4")
+                    
+                    video_full.close()
+                    os.remove('raw.mp4'); os.remove('raw.mp3')
+                except Exception as e: st.error(f"Erro no Editor 2.5: {e}")
       
+
