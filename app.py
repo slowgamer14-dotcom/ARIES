@@ -14,7 +14,7 @@ from gtts import gTTS
 # 1. Configurações da Página
 st.set_page_config(page_title="Aries AI - LikaON Empress", page_icon="♈", layout="wide")
 
-# --- VISUAL NEON ARIES ---
+# --- VISUAL NEON ARIES (CSS) ---
 url_fundo = "https://raw.githubusercontent.com/slowgamer14-dotcom/ARIES/main/fundo.jpg.png"
 url_sidebar = "https://raw.githubusercontent.com/slowgamer14-dotcom/ARIES/main/sidebar.jpg.png"
 
@@ -27,9 +27,10 @@ st.markdown(f"""
     </style>
     """, unsafe_allow_html=True)
 
-# 2. Funções Auxiliares
+# 2. Configurações de Modelo e Voz
+MODELO_25 = "gemini-2.5-flash" # Atualizado para a versão 2.5
+
 def aries_fala(texto):
-    """Gera áudio para a resposta da Aries"""
     try:
         tts = gTTS(text=texto, lang='pt', tld='com.br')
         fp = io.BytesIO()
@@ -38,8 +39,7 @@ def aries_fala(texto):
         audio_b64 = base64.b64encode(fp.read()).decode()
         html_audio = f'<audio autoplay src="data:audio/mp3;base64,{audio_b64}">'
         st.markdown(html_audio, unsafe_allow_html=True)
-    except Exception as e:
-        st.error(f"Erro na geração de voz: {e}")
+    except: pass
 
 # 3. Chaves de Segurança
 try:
@@ -47,89 +47,21 @@ try:
     CHAVE_DRIVE = st.secrets["GOOGLE_DRIVE_API_KEY"]
     genai.configure(api_key=CHAVE_GEMINI)
 except:
-    st.error("Erro: Verifique as chaves GEMINI e DRIVE nos Secrets!")
+    st.error("Erro nas Chaves! Verifique os Secrets do Streamlit.")
 
-MODELO = "gemini-1.5-flash"
-INSTRUCAO = "Você é Aries, mentora do canal LikaON. Sofisticada, direta e focada em gameplay de mistérios e Resident Evil."
+# --- ESTRUTURA ---
+st.title("♈ Aries AI - Operação Gemini 2.5 Flash")
+tab1, tab2 = st.tabs(["💬 Chat Estratégico", "🎬 Editor Autônomo 2.5"])
 
-# --- ESTRUTURA DE ABAS (CRIAÇÃO DAS VARIÁVEIS) ---
-st.title("♈ Aries AI - Sistema de Comando")
-tab1, tab2 = st.tabs(["💬 Chat com Voz", "🤖 Editor Autônomo"])
-
-# --- SIDEBAR ---
-with st.sidebar:
-    st.title("📊 Painel LikaON")
-    st.info("Aries agora tem voz! Fale com ela enquanto treina para o TAF.")
-    st.markdown("---")
-
-# --- ABA 1: CHAT COM VOZ ---
 with tab1:
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-
+    if "messages" not in st.session_state: st.session_state.messages = []
     for m in st.session_state.messages:
-        with st.chat_message(m["role"]):
-            st.markdown(m["content"])
+        with st.chat_message(m["role"]): st.markdown(m["content"])
 
-    if p := st.chat_input("Fale com a Aries..."):
+    if p := st.chat_input("Comando para Gemini 2.5..."):
         st.session_state.messages.append({"role": "user", "content": p})
-        with st.chat_message("user"):
-            st.markdown(p)
+        with st.chat_message("user"): st.markdown(p)
         
-        url_api = f"https://generativelanguage.googleapis.com/v1beta/models/{MODELO}:generateContent?key={CHAVE_GEMINI}"
-        payload = {
-            "contents": [{"role": "user" if m["role"] == "user" else "model", "parts": [{"text": m["content"]}]} for m in st.session_state.messages],
-            "system_instruction": {"parts": [{"text": INSTRUCAO}]}
-        }
-        
-        with st.chat_message("assistant"):
-            try:
-                res = requests.post(url_api, json=payload).json()
-                txt_resposta = res['candidates'][0]['content']['parts'][0]['text']
-                st.markdown(txt_resposta)
-                st.session_state.messages.append({"role": "assistant", "content": txt_resposta})
-                aries_fala(txt_resposta) # Executa a voz
-            except:
-                st.error("Erro na comunicação com a Aries.")
-
-# --- ABA 2: EDIÇÃO DRIVE ---
-with tab2:
-    st.subheader("🎙️ Edição por IA de Áudio")
-    id_drive = st.text_input("ID do vídeo no Drive:")
-    ordem = st.text_input("Comando de edição:")
-
-    if st.button("🚀 Processar"):
-        if id_drive:
-            with st.spinner("Aries trabalhando..."):
-                try:
-                    # Download
-                    drive_service = googleapiclient.discovery.build('drive', 'v3', developerKey=CHAVE_DRIVE)
-                    request = drive_service.files().get_media(fileId=id_drive)
-                    with io.FileIO('raw.mp4', 'wb') as fh:
-                        downloader = googleapiclient.http.MediaIoBaseDownload(fh, request)
-                        done = False
-                        while not done: _, done = downloader.next_chunk()
-
-                    # Áudio e IA
-                    video_full = VideoFileClip('raw.mp4')
-                    video_full.audio.write_audiofile("raw.mp3")
-                    
-                    sample_file = genai.upload_file(path="raw.mp3")
-                    while sample_file.state.name == "PROCESSING": time.sleep(2); sample_file = genai.get_file(sample_file.name)
-
-                    model = genai.GenerativeModel(MODELO)
-                    prompt = f"Analise o áudio. Pedido: {ordem}. Retorne JSON: {{'inicio': X, 'fim': Y, 'motivo': '...'}}"
-                    response = model.generate_content([sample_file, prompt])
-                    genai.delete_file(sample_file.name)
-                    
-                    decisao = json.loads(response.text.replace("```json", "").replace("```", ""))
-                    st.success(f"Aries: {decisao['motivo']}")
-
-                    # Corte
-                    clipe = video_full.subclip(decisao['inicio'], decisao['fim'])
-                    clipe.write_videofile("final.mp4", codec="libx264", audio_codec="aac", preset="ultrafast")
-                    st.video("final.mp4")
-                    
-                    video_full.close()
-                    os.remove('raw.mp4'); os.remove('raw.mp3')
-                except Exception as e: st.error(f"Erro: {e}")
+        # Chamada API Gemini 2.5 Flash
+        url_api = f"
+      
