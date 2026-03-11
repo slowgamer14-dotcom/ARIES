@@ -102,8 +102,5 @@ with tab2:
     st.info("O módulo MoviePy está pronto para processar seus clipes de GTA e Resident Evil.")
     # Aqui vai o código de upload que passamos antes
 
-# ABA 3: BOMBEIRO
-with tab3:
-    st.subheader("🚒 Preparação Bombeiro RS")
-    st.write("Mantenha o foco no TAF e nos estudos. Aries está monitorando os editais.")
+
 
