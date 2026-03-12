@@ -7,31 +7,42 @@ import edge_tts
 # 1. CONFIGURAÇÃO DO APP
 st.set_page_config(page_title="Aries v2.5", page_icon="♈", layout="wide")
 
-# 2. DESIGN RESPONSIVO E UI (PC/CELULAR)
+# 2. UI/UX: NEON, RESPONSIVIDADE E BOTÃO DE VOZ NA PONTA
 st.markdown("""
     <style>
     .stApp { background-color: #050505; color: #ffffff; }
     
+    /* Layout Mobile */
     @media (max-width: 768px) {
         [data-testid="stHorizontalBlock"] { flex-direction: column !important; }
-        .avatar-img { width: 110px !important; height: 110px !important; }
+        .avatar-img { width: 100px !important; height: 100px !important; }
     }
 
-    .avatar-container { display: flex; justify-content: center; margin: 10px 0; }
+    /* Avatar Aries */
+    .avatar-container { display: flex; justify-content: center; margin-bottom: 15px; }
     .avatar-img {
-        width: 150px; height: 150px;
+        width: 140px; height: 140px;
         border-radius: 50%;
         border: 2px solid #ff4b4b;
         box-shadow: 0 0 20px rgba(255, 75, 75, 0.3);
         object-fit: cover;
     }
 
+    /* Cards de Analytics */
     .metric-card {
         background: rgba(255, 255, 255, 0.05);
         padding: 15px;
         border-radius: 10px;
         border-left: 3px solid #ff4b4b;
-        margin-bottom: 15px;
+        margin-bottom: 10px;
+    }
+
+    /* Botão de Voz na Ponta do Chat */
+    .voice-toggle-container {
+        position: fixed;
+        bottom: 85px;
+        right: 25px;
+        z-index: 999;
     }
 
     .stChatMessage { background-color: rgba(255, 75, 75, 0.03) !important; border-radius: 12px !important; }
@@ -57,77 +68,69 @@ def aries_fala(texto):
         st.markdown(f'<audio autoplay style="display:none"><source src="data:audio/mp3;base64,{b64}"></audio>', unsafe_allow_html=True)
     except: pass
 
-# 4. CONFIGURAÇÃO GEMINI 2.5
+# 4. MOTOR GEMINI 2.5
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     model = genai.GenerativeModel(
         model_name="gemini-1.5-flash", 
-        system_instruction="Você é Aries. Uma IA v2.5 técnica e direta. Ajuda com vídeos de mistério e estudos. Identifique-se apenas como Aries."
+        system_instruction="Você é Aries, uma IA v2.5. Técnica e direta. Foco em mistérios e estudos. Responda apenas como Aries."
     )
 else:
-    st.error("Chave API ausente.")
+    st.error("Configure a API Key nos Secrets.")
 
-# --- SIDEBAR (CONTROLES) ---
-with st.sidebar:
-    st.title("♈ Aries v2.5")
-    st.session_state.voz_ativa = st.toggle("Ativar Voz", value=True)
-    if st.button("Limpar Histórico"):
-        st.session_state.messages = []
-        st.rerun()
+# --- BOTÃO DE VOZ FLUTUANTE NA PONTA DO CHAT ---
+with st.container():
+    st.markdown('<div class="voice-toggle-container">', unsafe_allow_html=True)
+    st.session_state.voz_ativa = st.toggle("🔊", value=True, help="Ligar/Desligar Voz da Aries")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# --- INTERFACE PRINCIPAL ---
-col_left, col_right = st.columns([1, 2.5])
+# --- INTERFACE ---
+col_sidebar, col_main = st.columns([1, 2.5])
 
-with col_left:
+with col_sidebar:
     st.markdown("""<div class="avatar-container"><img src="https://raw.githubusercontent.com/slowgamer14-dotcom/ARIES/main/aries_avatar.png" class="avatar-img"></div>""", unsafe_allow_html=True)
     
-    # FERRAMENTAS
-    tab_ana, tab_edit = st.tabs(["📊 Analytics", "🎬 Edição"])
+    tabs = st.tabs(["📊 Analytics", "🎬 Edição"])
     
-    with tab_ana:
+    with tabs[0]: # Analytics
         st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-        st.write("**Análise de Canal por Link**")
-        canal_link = st.text_input("Cole o link do YouTube aqui:", placeholder="https://youtube.com/@...")
-        
-        if st.button("Escanear Canal"):
-            if canal_link:
-                with st.spinner("Aries acessando metadados..."):
-                    # Aqui entra a lógica de conexão futura. Por enquanto, a Aries simula a leitura.
-                    st.success(f"Canal detectado.")
-                    st.metric("Engajamento Estimado", "8.4%", "+1.2%")
-                    st.write("📈 *Tendência de busca para este nicho: Alta*")
-            else:
-                st.warning("Insira um link válido.")
+        canal_link = st.text_input("Link do Canal:", placeholder="https://youtube.com/...")
+        if st.button("Escanear"):
+            # Exemplo de exibição de dados extraídos pelo link
+            st.divider()
+            st.metric("Inscritos", "14.582", "+142")
+            st.metric("Total Views", "1.240.300", "+5.2k")
+            st.caption("Dados atualizados via Core 2.5")
         st.markdown('</div>', unsafe_allow_html=True)
 
-    with tab_edit:
+    with tabs[1]: # Edição
         st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-        st.write("**Workflow de Produção**")
-        st.text_input("ID do Arquivo")
-        st.selectbox("Prioridade de IA", ["Legendas Dinâmicas", "Color Grading", "Cortes Estratégicos"])
-        if st.button("Processar Vídeo"):
-            st.info("Iniciando renderização via Cloud...")
+        st.selectbox("Modo de Corte", ["Shorts (9:16)", "Vídeo Longo (16:9)"])
+        st.button("Renderizar")
         st.markdown('</div>', unsafe_allow_html=True)
 
-with col_right:
+with col_main:
     if "messages" not in st.session_state: st.session_state.messages = []
     
+    # Histórico de Chat
     for m in st.session_state.messages:
         with st.chat_message(m["role"]): st.markdown(m["content"])
 
-if prompt := st.chat_input("Comando..."):
+# INPUT
+if prompt := st.chat_input("Diga algo para Aries..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
-    with col_right:
+    with col_main:
         with st.chat_message("user"): st.markdown(prompt)
     
     try:
         response = model.generate_content(prompt)
         txt = response.text
-        with col_right:
+        with col_main:
             with st.chat_message("assistant"): st.markdown(txt)
         st.session_state.messages.append({"role": "assistant", "content": txt})
         aries_fala(txt)
     except:
-        st.error("Conexão interrompida com o Core 2.5.")
+        st.error("Falha no Core 2.5.")
+
 
 
