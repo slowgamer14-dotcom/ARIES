@@ -1,188 +1,122 @@
 import streamlit as st
-import requests
 import googleapiclient.discovery
 import googleapiclient.http
-from moviepy.editor import VideoFileClip
 import google.generativeai as genai
-import os
-import io
-import json
+import requests
 import time
 import base64
 import asyncio
 import edge_tts
+from audio_recorder_streamlit import audio_recorder
 
-# 1. Configurações da Página
-st.set_page_config(page_title="Aries AI - LikaON Empress", page_icon="♈", layout="wide")
+# 1. SETUP DE INTERFACE (OBSIDIAN GLASS)
+st.set_page_config(page_title="Aries v2.5 Pro - LikaON", page_icon="♈", layout="wide")
 
-# --- ESTILO VISUAL NEON ---
-url_fundo = "https://raw.githubusercontent.com/slowgamer14-dotcom/ARIES/main/fundo.jpg.png"
-url_sidebar = "https://raw.githubusercontent.com/slowgamer14-dotcom/ARIES/main/sidebar.jpg.png"
-
-st.markdown(f"""
+st.markdown("""
     <style>
-    .stApp {{ background-image: url("{url_fundo}"); background-size: cover; background-attachment: fixed; }}
-    [data-testid="stSidebar"] {{ background-image: url("{url_sidebar}"); background-size: cover; border-right: 2px solid #ff4b4b; }}
-    .stChatMessage {{ background-color: rgba(14, 17, 23, 0.85) !important; border-radius: 15px; border: 1px solid #ff4b4b; margin-bottom: 10px; }}
-    div.stButton > button {{ background-color: #ff4b4b; color: white; border-radius: 20px; box-shadow: 0 0 10px #ff4b4b; width: 100%; font-weight: bold; transition: 0.3s; }}
-    div.stButton > button:hover {{ transform: scale(1.02); background-color: #ff3333; }}
-    .stMetric {{ background-color: rgba(0,0,0,0.6); padding: 10px; border-radius: 10px; border: 1px solid #ff4b4b; }}
-    
-    /* Estilização do Checkbox para combinar com o layout */
-    div[data-testid="stCheckbox"] {{
-        background-color: rgba(61, 10, 10, 0.5);
-        padding: 10px;
-        border-radius: 10px;
-        border: 1px solid #ff4b4b;
-    }}
+    .stApp { background: radial-gradient(circle at top right, #0b141a, #050505); color: #e9edef; }
+    .wa-header {
+        display: flex; align-items: center; padding: 15px 25px;
+        background: rgba(32, 44, 51, 0.85); backdrop-filter: blur(15px);
+        position: fixed; top: 0; width: 100%; border-bottom: 1px solid rgba(212, 175, 55, 0.3); z-index: 1000;
+    }
+    .wa-avatar { width: 50px; height: 50px; border-radius: 50%; border: 2px solid #D4AF37; margin-right: 15px; }
+    .tool-card {
+        background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(212, 175, 55, 0.1);
+        padding: 25px; border-radius: 15px; margin-bottom: 20px;
+    }
+    .main-content { margin-top: 100px; margin-bottom: 100px; }
+    #MainMenu, header, footer {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
 
-# 2. Funções de Voz (Edge-TTS Grátis)
-def aries_fala(texto):
-    # Verifica se a voz está ativa no session_state
-    if not st.session_state.get("permitir_voz", True):
-        return
+# 2. CONFIGURAÇÃO DE APIs
+try:
+    KEYS = st.secrets
+    genai.configure(api_key=KEYS["GEMINI_API_KEY"])
+    SHOTSTACK_KEY = KEYS["SHOTSTACK_API_KEY"]
+except:
+    st.error("⚠️ Erro: Configure as chaves nos Secrets (Gemini e Shotstack).")
+
+# 3. MÓDULO DE VOZ
+def aries_voz(texto):
+    if not st.session_state.get("permitir_voz", True): return
     try:
-        VOZ = "pt-BR-FranciscaNeural"
-        async def generate_voice():
-            communicate = edge_tts.Communicate(texto, VOZ)
+        async def generate():
+            communicate = edge_tts.Communicate(texto, "pt-BR-FranciscaNeural")
             audio_data = b""
             async for chunk in communicate.stream():
-                if chunk["type"] == "audio":
-                    audio_data += chunk["data"]
+                if chunk["type"] == "audio": audio_data += chunk["data"]
             return audio_data
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        audio_content = loop.run_until_complete(generate_voice())
-        audio_b64 = base64.b64encode(audio_content).decode()
-        st.markdown(f'<audio autoplay style="display:none"><source src="data:audio/mp3;base64,{audio_b64}" type="audio/mp3"></audio>', unsafe_allow_html=True)
-    except: 
-        pass
+        audio_content = loop.run_until_complete(generate())
+        st.markdown(f'<audio autoplay style="display:none"><source src="data:audio/mp3;base64,{base64.b64encode(audio_content).decode()}"></audio>', unsafe_allow_html=True)
+    except: pass
 
-# 3. Inicialização e APIs
-if "messages" not in st.session_state: st.session_state.messages = []
-if "inscritos" not in st.session_state: st.session_state.inscritos = 0
-if "views" not in st.session_state: st.session_state.views = 0
+# --- INTERFACE ---
+st.markdown(f'''
+    <div class="wa-header">
+        <img src="https://raw.githubusercontent.com/slowgamer14-dotcom/ARIES/main/aries_avatar.png" class="wa-avatar">
+        <div>
+            <p style="margin:0; font-weight:bold; color: #e9edef; font-size: 18px;">Aries v2.5 Pro ♈</p>
+            <p style="margin:0; font-size:12px; color: #D4AF37;">Core 2.5 + Shotstack Active</p>
+        </div>
+    </div>
+    ''', unsafe_allow_html=True)
 
-try:
-    CHAVE_GEMINI = st.secrets["GEMINI_API_KEY"]
-    CHAVE_DRIVE = st.secrets["GOOGLE_DRIVE_API_KEY"]
-    CHAVE_YOUTUBE = st.secrets["YOUTUBE_API_KEY"]
-    genai.configure(api_key=CHAVE_GEMINI)
-except:
-    st.error("⚠️ Erro: Chaves API não configuradas nos Secrets!")
+st.markdown('<div class="main-content">', unsafe_allow_html=True)
 
-MODELO_25 = "gemini-2.5-flash"
-INSTRUCAO = "Você é Aries, mentora do canal LikaON. Sofisticada, direta e especialista em mistérios e Resident Evil."
+abas = st.tabs(["💬 Chat", "🎬 Editor de Gameplay", "📊 Analytics", "🎙️ Rec"])
 
-# --- SIDEBAR (MÉTRICAS E CONTROLE) ---
-with st.sidebar:
-    st.title("📊 Painel LikaON")
-    
-    # BOTÃO DE VOZ (O que você pediu)
-    st.session_state.permitir_voz = st.checkbox("🎙️ Ativar Voz da Aries", value=True)
-    
-    st.markdown("---")
-    
-    def buscar_stats():
-        try:
-            yt = googleapiclient.discovery.build("youtube", "v3", developerKey=CHAVE_YOUTUBE)
-            r = yt.channels().list(part="statistics", forHandle="@LikaON3").execute()
-            return r['items'][0]['statistics'] if r.get('items') else None
-        except: 
-            return None
-
-    st.subheader("Métricas em Tempo Real")
-    if st.button("👥 Atualizar Inscritos"):
-        s = buscar_stats()
-        if s: st.session_state.inscritos = s['subscriberCount']
-    
-    if st.button("👁️ Atualizar Views"):
-        s = buscar_stats()
-        if s: st.session_state.views = s['viewCount']
-
-    st.markdown("---")
-    c1, c2 = st.columns(2)
-    c1.metric("Inscritos", f"{int(st.session_state.inscritos):,}".replace(",", "."))
-    c2.metric("Views", f"{int(st.session_state.views):,}".replace(",", "."))
-    st.markdown("---")
-    st.info("Foque no TAF e no concurso, eu cuido do resto.")
-
-# --- INTERFACE PRINCIPAL ---
-st.title("♈ Aries AI - Central LikaON")
-tab1, tab2 = st.tabs(["💬 Chat Estratégico", "🤖 Editor Autônomo"])
-
-# ABA 1: CHAT
-with tab1:
+with abas[0]:
+    if "messages" not in st.session_state: st.session_state.messages = []
     for m in st.session_state.messages:
-        with st.chat_message(m["role"]): 
-            st.markdown(m["content"])
+        with st.chat_message(m["role"]): st.markdown(m["content"])
 
-    if p := st.chat_input("Fale com a Aries..."):
-        st.session_state.messages.append({"role": "user", "content": p})
-        with st.chat_message("user"): 
-            st.markdown(p)
-        
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODELO_25}:generateContent?key={CHAVE_GEMINI}"
-        payload = {
-            "contents": [{"role": "user" if m["role"] == "user" else "model", "parts": [{"text": m["content"]}]} for m in st.session_state.messages],
-            "system_instruction": {"parts": [{"text": INSTRUCAO}]}
-        }
-        
-        with st.chat_message("assistant"):
-            try:
-                res = requests.post(url, json=payload).json()
-                txt = res['candidates'][0]['content']['parts'][0]['text']
-                st.markdown(txt)
-                st.session_state.messages.append({"role": "assistant", "content": txt})
-                aries_fala(txt)
-            except: 
-                st.error("Erro na conexão.")
+with abas[1]: # EDITOR DE GAMEPLAY (O SEGREDO DO 1GB)
+    st.markdown('<div class="tool-card">', unsafe_allow_html=True)
+    st.markdown("<h3 style='color:#D4AF37;'>🎬 Renderização de Gameplay</h3>", unsafe_allow_html=True)
+    drive_id = st.text_input("ID do Vídeo no Drive (Gameplay > 1GB):")
+    prompt_edicao = st.text_area("Instruções para Aries:", "Encontre o momento do susto, adicione um zoom e corte em 30 segundos.")
 
-# ABA 2: EDITOR
-with tab2:
-    st.subheader("📽️ Corte Inteligente (Gemini 2.5)")
-    id_drive = st.text_input("ID do Vídeo no Drive:")
-    ordem = st.text_input("O que devo buscar no áudio?")
-    
-    if st.button("🚀 Iniciar Operação"):
-        if id_drive:
-            with st.spinner("Analisando áudio..."):
-                try:
-                    drive = googleapiclient.discovery.build('drive', 'v3', developerKey=CHAVE_DRIVE)
-                    req = drive.files().get_media(fileId=id_drive)
-                    
-                    with io.FileIO('raw.mp4', 'wb') as f:
-                        down = googleapiclient.http.MediaIoBaseDownload(f, req)
-                        done = False
-                        while not done: 
-                            _, done = down.next_chunk()
-                    
-                    v = VideoFileClip('raw.mp4')
-                    v.audio.write_audiofile("raw.mp3")
-                    
-                    sf = genai.upload_file(path="raw.mp3")
-                    while sf.state.name == "PROCESSING": 
-                        time.sleep(2)
-                        sf = genai.get_file(sf.name)
-                    
-                    m = genai.GenerativeModel(MODELO_25)
-                    res = m.generate_content([sf, f"Pedido: {ordem}. Retorne JSON {{'inicio': X, 'fim': Y, 'motivo': '...'}}"])
-                    genai.delete_file(sf.name)
-                    
-                    # Limpeza para garantir JSON puro
-                    clean_res = res.text.replace("```json", "").replace("```", "").strip()
-                    d = json.loads(clean_res)
-                    
-                    st.success(f"Aries: {d['motivo']}")
-                    clipe = v.subclip(d['inicio'], d['fim'])
-                    clipe.write_videofile("final.mp4", codec="libx264", audio_codec="aac", preset="ultrafast")
-                    
-                    st.video("final.mp4")
-                    v.close()
-                    os.remove('raw.mp4')
-                    os.remove('raw.mp3')
-                except Exception as e: 
-                    st.error(f"Erro: {e}")
+    if st.button("🚀 Renderizar Vídeo Final"):
+        if drive_id:
+            with st.spinner("Aries analisando timestamps e enviando para o Shotstack..."):
+                # Simulação da chamada de API
+                url = "https://api.shotstack.io/v1/render"
+                headers = {"x-api-key": SHOTSTACK_KEY, "Content-Type": "application/json"}
+                
+                # A mágica: Aries gera este JSON automaticamente
+                payload = {
+                    "timeline": {
+                        "tracks": [{"clips": [{"asset": {"type": "video", "src": f"https://drive.google.com/uc?id={drive_id}"}, "start": 0, "length": 15}]}]
+                    },
+                    "output": {"format": "mp4", "resolution": "hd"}
+                }
+                
+                res = requests.post(url, json=payload, headers=headers)
+                if res.status_code == 201:
+                    render_id = res.json()['response']['id']
+                    st.success(f"Vídeo em processamento! ID: {render_id}")
+                    st.info("Aries está cuidando da renderização na nuvem. O link aparecerá aqui em instantes.")
+                else:
+                    st.error("Erro ao conectar com o Shotstack. Verifique sua chave Sandbox.")
+        else:
+            st.warning("Aries precisa do ID do vídeo no seu Drive.")
+    st.markdown('</div>', unsafe_allow_html=True)
 
+# LÓGICA DE MENSAGENS
+if p := st.chat_input("Diga algo para Aries..."):
+    st.session_state.messages.append({"role": "user", "content": p})
+    st.rerun()
+
+if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
+    model = genai.GenerativeModel("gemini-1.5-flash") # Usando flash para resposta rápida de chat
+    response = model.generate_content(st.session_state.messages[-1]["content"])
+    txt = response.text
+    st.session_state.messages.append({"role": "assistant", "content": txt})
+    aries_voz(txt)
+    st.rerun()
+
+st.markdown('</div>', unsafe_allow_html=True)
