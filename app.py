@@ -1,152 +1,169 @@
 import streamlit as st
+import requests
+import google.generativeai as genai
 import base64
+import asyncio
+import edge_tts
+import os
 
-# 1. Configuração da Página
-st.set_page_config(page_title="Aries AI - Central LikaON", layout="wide")
+# --- 1. CONFIGURAÇÃO RESPONSIVA E TÍTULO ---
+st.set_page_config(
+    page_title="Aries AI",
+    page_icon="♈",
+    layout="wide",  # "wide" permite o uso de colunas responsivas
+    initial_sidebar_state="collapsed" # Sidebar recolhida por defeito para mobile
+)
 
-# 2. CSS Customizado para Estilo Dashboard Futurista
+# --- 2. CSS CUSTOMIZADO PARA DESIGN RESPONSIVO E EFEITO GLOW ---
 st.markdown("""
     <style>
-    /* Fundo Principal e Sidebar */
+    /* Estilos Gerais (Dark Mode) */
     .stApp {
         background-color: #050505;
-        color: #ffffff;
-    }
-    
-    [data-testid="stSidebar"] {
-        background-color: #0d0d0d;
-        border-right: 2px solid #ff4b4b;
-    }
-
-    /* Títulos e Textos */
-    h1, h2, h3, p {
-        color: #ffffff !important;
+        color: #e0e0e0;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
+    
+    /* Configurações Responsivas (Media Queries) */
+    @media (max-width: 768px) {
+        /* No Telemóvel, as colunas são empilhadas verticalmente */
+        [data-testid="stHorizontalBlock"] {
+            flex-direction: column !important;
+        }
+        [data-testid="stColumn"] {
+            width: 100% !important;
+            margin-bottom: 20px;
+        }
+    }
 
-    /* Cards de Métricas (Inscritos e Views) */
-    .metric-card {
-        background-color: #000000;
-        border: 2px solid #ff4b4b;
-        border-radius: 10px;
-        padding: 15px;
-        text-align: center;
-        box-shadow: 0 0 15px rgba(255, 75, 75, 0.2);
+    /* Avatar do Avatar Holográfico com Efeito de Brilho */
+    .avatar-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-top: 20px;
+        margin-bottom: 30px;
     }
     
-    .metric-value {
-        font-size: 24px;
-        font-weight: bold;
-        color: #ffffff;
-        font-family: 'Courier New', Courier, monospace;
-    }
-
-    /* Balões de Chat */
-    .stChatMessage {
-        background-color: rgba(20, 20, 20, 0.9) !important;
-        border: 1px solid #ff4b4b !important;
-        border-radius: 15px !important;
-        color: #ffffff !important;
-        margin-bottom: 15px;
-    }
-
-    /* Botões Neon */
-    div.stButton > button {
-        background-color: transparent;
-        color: #ffffff;
+    .avatar-img {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
         border: 2px solid #ff4b4b;
-        border-radius: 10px;
-        width: 100%;
-        font-weight: bold;
-        text-transform: uppercase;
-        transition: 0.3s;
-        box-shadow: 0 0 5px #ff4b4b;
+        box-shadow: 0 0 25px rgba(255, 75, 75, 0.6);
+        object-fit: cover;
     }
 
-    div.stButton > button:hover {
+    /* Balões de Chat Estilo Minimalista (Mais largos no mobile) */
+    .stChatMessage {
+        background-color: rgba(255, 255, 255, 0.05) !important;
+        border-radius: 10px !important;
+        border: none !important;
+        margin-bottom: 12px;
+    }
+
+    /* Input de Comando (Estilo Mobile) */
+    div[data-testid="stChatInput"] {
+        padding: 15px;
+    }
+
+    /* Botões e Inputs com Estilo Neon Subtil */
+    .stButton > button, .stTextInput input {
+        background-color: transparent;
+        color: #ff4b4b;
+        border: 1px solid #ff4b4b;
+        border-radius: 5px;
+        transition: 0.3s;
+    }
+    
+    .stButton > button:hover {
         background-color: #ff4b4b;
         color: white;
-        box-shadow: 0 0 20px #ff4b4b;
+        box-shadow: 0 0 10px #ff4b4b;
     }
-
-    /* Inputs de Texto */
-    .stTextInput input {
-        background-color: #1a1a1a !important;
-        color: white !important;
-        border: 1px solid #333 !important;
-    }
-
-    /* Divisórias */
-    hr {
-        border-top: 1px solid #ff4b4b;
-    }
+    
+    /* Esconder elementos desnecessários */
+    #MainMenu, footer, header {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
 
-# --- ESTRUTURA DA DASHBOARD (LAYOUT DA IMAGEM) ---
+# --- 3. LÓGICA DE VOZ (GRÁTIS E DIRETA) ---
+def aries_fala(texto):
+    try:
+        async def generate():
+            communicate = edge_tts.Communicate(texto, "pt-BR-FranciscaNeural")
+            audio_data = b""
+            async for chunk in communicate.stream():
+                if chunk["type"] == "audio": audio_data += chunk["data"]
+            return audio_data
+        
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        audio_content = loop.run_until_complete(generate())
+        b64 = base64.b64encode(audio_content).decode()
+        st.markdown(f'<audio autoplay style="display:none"><source src="data:audio/mp3;base64,{b64}"></audio>', unsafe_allow_html=True)
+    except: pass
 
-# Título Superior Centralizado
-st.markdown("<h1 style='text-align: center; color: white;'>♈ Aries AI - Central LikaON 2.5 Flash</h1>", unsafe_allow_html=True)
-st.markdown("<hr>", unsafe_allow_html=True)
+# --- 4. INICIALIZAÇÃO DA IA ---
+try:
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    model = genai.GenerativeModel("gemini-1.5-flash")
+    # Instrução limpa: apenas "Aries"
+    INSTRUCAO = "Você é Aries. Uma IA técnica, direta e sofisticada. Foco: Canais Dark e suporte ao criador (futuro Bombeiro)."
+except:
+    st.error("Configure a GEMINI_API_KEY nos Secrets.")
 
-# Divisão em Colunas (Sidebar simulada à esquerda, Chat no centro, Editor à direita)
-col_painel, col_chat, col_editor = st.columns([1.2, 2, 1.2])
+# --- 5. INTERFACE UNIFICADA (PC E CELULAR) ---
 
-# --- COLUNA 1: PAINEL LikaON (MÉTRICAS) ---
-with col_painel:
-    st.markdown("### 📊 PAINEL LikaON")
-    st.caption("Voz Neural Ativa (Grátis) | Gemini 2.5 Flash Ativo")
-    
-    st.checkbox("🎙️ Ativar Voz da Aries", value=True)
-    
-    st.markdown("---")
-    st.write("🔄 **Métricas do Canal**")
-    
-    c_btn1, c_btn2 = st.columns(2)
-    with c_btn1: st.button("👥 Atualizar Inscritos")
-    with c_btn2: st.button("👁️ Atualizar Views")
-    
-    # Cards de Valor
-    st.markdown("""
-        <div style='display: flex; gap: 10px; margin-top: 10px;'>
-            <div class="metric-card" style="flex: 1;">
-                <p style="font-size: 12px; margin:0;">Inscritos:</p>
-                <p class="metric-value">14.500</p>
-            </div>
-            <div class="metric-card" style="flex: 1;">
-                <p style="font-size: 12px; margin:0;">Total Views:</p>
-                <p class="metric-value">1.2M</p>
-            </div>
+# Título Centralizado
+st.markdown("<h2 style='text-align: center;'>Aries AI</h2>", unsafe_allow_html=True)
+
+# Layout Responsivo: Duas Colunas (Avatar + Chat)
+col_avatar, col_chat = st.columns([1, 2.5])
+
+# COLUNA DO AVATAR (Fica no TOPO no Mobile)
+with col_avatar:
+    # Exibição do Avatar (Usa a tua imagem preferida aqui)
+    st.markdown(f"""
+        <div class="avatar-container">
+            <img src="https://raw.githubusercontent.com/slowgamer14-dotcom/ARIES/main/aries_avatar.png" class="avatar-img">
         </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.info("Foque no TAF e nos estudos de Bombeiro, eu cuido do canal.")
-    st.markdown("<p style='font-size: 10px; color: #ff4b4b;'>♈ Aries v10.0 | Autonomia Ativa</p>", unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 
-# --- COLUNA 2: CHAT ESTRATÉGICO ---
+# COLUNA DO CHAT (Fica ABAIXO do Avatar no Mobile)
 with col_chat:
-    st.markdown("### 💬 Chat Estratégico")
-    
-    # Simulação de conversa para teste visual
-    with st.chat_message("user"):
-        st.write("Foque no TAF e nos estudos a mystery content creation do canal?")
-    
-    with st.chat_message("assistant"):
-        st.write("Aries AI continua a mentoria estratégica. O content creation caminha junto com sua nova jornada.")
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
 
-    # Input fixo no fundo (ajustado pelo streamlit automaticamente)
-    st.text_input("Fale com a Aries...", key="chat_input")
+    # Área de Mensagens
+    for m in st.session_state.messages:
+        with st.chat_message(m["role"]):
+            st.markdown(m["content"])
 
-# --- COLUNA 3: EDIÇÃO AUTÔNOMA ---
-with col_editor:
-    st.markdown("### 🤖 Edição Autônoma")
+# Input de Comando (Fica fixo na parte inferior)
+if p := st.chat_input("Comando..."):
+    st.session_state.messages.append({"role": "user", "content": p})
+    # Atualiza a área de chat antes de chamar a IA
+    with col_chat:
+        with st.chat_message("user"):
+            st.markdown(p)
     
-    with st.container():
-        st.markdown("<div style='background-color: #111; padding: 20px; border-radius: 10px; border: 1px solid #333;'>", unsafe_allow_html=True)
-        st.write("**Movie Editor**")
-        st.text_input("ID do Vídeo no Drive:")
-        st.text_area("O que a Aries deve buscar no áudio?", height=100)
-        st.button("🚀 INICIAR OPERAÇÃO DE CORTE")
-        st.markdown("</div>", unsafe_allow_html=True)
+    # Chama o Gemini
+    try:
+        # Envia o contexto da conversa
+        chat = model.start_chat(history=[
+            {"role": "user" if m["role"] == "user" else "model", "parts": [m["content"]]} 
+            for m in st.session_state.messages[:-1]
+        ])
+        response = chat.send_message(p)
+        txt = response.text
+        # Adiciona a resposta à área de chat
+        with col_chat:
+            with st.chat_message("assistant"):
+                st.markdown(txt)
+        st.session_state.messages.append({"role": "assistant", "content": txt})
+        aries_fala(txt)
+    except Exception as e:
+        st.error("Erro na conexão com a Aries.")
+
 
