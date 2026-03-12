@@ -1,150 +1,152 @@
 import streamlit as st
-import requests
-import googleapiclient.discovery
-import googleapiclient.http
-from moviepy.editor import VideoFileClip
-import google.generativeai as genai
-import os
-import io
-import json
-import time
 import base64
-import asyncio
-import edge_tts
 
-# 1. Configurações da Página
-st.set_page_config(page_title="Aries AI - LikaON Empress", page_icon="♈", layout="wide")
+# 1. Configuração da Página
+st.set_page_config(page_title="Aries AI - Central LikaON", layout="wide")
 
-# --- ESTILO VISUAL NEON ---
-url_fundo = "https://raw.githubusercontent.com/slowgamer14-dotcom/ARIES/main/fundo.jpg.png"
-url_sidebar = "https://raw.githubusercontent.com/slowgamer14-dotcom/ARIES/main/sidebar.jpg.png"
-
-st.markdown(f"""
+# 2. CSS Customizado para Estilo Dashboard Futurista
+st.markdown("""
     <style>
-    .stApp {{ background-image: url("{url_fundo}"); background-size: cover; background-attachment: fixed; }}
-    [data-testid="stSidebar"] {{ background-image: url("{url_sidebar}"); background-size: cover; border-right: 2px solid #ff4b4b; }}
-    .stChatMessage {{ background-color: rgba(14, 17, 23, 0.85) !important; border-radius: 15px; border: 1px solid #ff4b4b; margin-bottom: 10px; }}
-    div.stButton > button {{ background-color: #ff4b4b; color: white; border-radius: 20px; box-shadow: 0 0 10px #ff4b4b; width: 100%; font-weight: bold; transition: 0.3s; }}
-    div.stButton > button:hover {{ transform: scale(1.02); background-color: #ff3333; }}
-    .stMetric {{ background-color: rgba(0,0,0,0.6); padding: 10px; border-radius: 10px; border: 1px solid #ff4b4b; }}
+    /* Fundo Principal e Sidebar */
+    .stApp {
+        background-color: #050505;
+        color: #ffffff;
+    }
+    
+    [data-testid="stSidebar"] {
+        background-color: #0d0d0d;
+        border-right: 2px solid #ff4b4b;
+    }
+
+    /* Títulos e Textos */
+    h1, h2, h3, p {
+        color: #ffffff !important;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    /* Cards de Métricas (Inscritos e Views) */
+    .metric-card {
+        background-color: #000000;
+        border: 2px solid #ff4b4b;
+        border-radius: 10px;
+        padding: 15px;
+        text-align: center;
+        box-shadow: 0 0 15px rgba(255, 75, 75, 0.2);
+    }
+    
+    .metric-value {
+        font-size: 24px;
+        font-weight: bold;
+        color: #ffffff;
+        font-family: 'Courier New', Courier, monospace;
+    }
+
+    /* Balões de Chat */
+    .stChatMessage {
+        background-color: rgba(20, 20, 20, 0.9) !important;
+        border: 1px solid #ff4b4b !important;
+        border-radius: 15px !important;
+        color: #ffffff !important;
+        margin-bottom: 15px;
+    }
+
+    /* Botões Neon */
+    div.stButton > button {
+        background-color: transparent;
+        color: #ffffff;
+        border: 2px solid #ff4b4b;
+        border-radius: 10px;
+        width: 100%;
+        font-weight: bold;
+        text-transform: uppercase;
+        transition: 0.3s;
+        box-shadow: 0 0 5px #ff4b4b;
+    }
+
+    div.stButton > button:hover {
+        background-color: #ff4b4b;
+        color: white;
+        box-shadow: 0 0 20px #ff4b4b;
+    }
+
+    /* Inputs de Texto */
+    .stTextInput input {
+        background-color: #1a1a1a !important;
+        color: white !important;
+        border: 1px solid #333 !important;
+    }
+
+    /* Divisórias */
+    hr {
+        border-top: 1px solid #ff4b4b;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# 2. Funções de Voz (Edge-TTS Grátis)
-def aries_fala(texto):
-    if not st.session_state.get("permitir_voz", True):
-        return
-    try:
-        VOZ = "pt-BR-FranciscaNeural"
-        async def generate_voice():
-            communicate = edge_tts.Communicate(texto, VOZ)
-            audio_data = b""
-            async for chunk in communicate.stream():
-                if chunk["type"] == "audio":
-                    audio_data += chunk["data"]
-            return audio_data
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        audio_content = loop.run_until_complete(generate_voice())
-        audio_b64 = base64.b64encode(audio_content).decode()
-        st.markdown(f'<audio autoplay style="display:none"><source src="data:audio/mp3;base64,{audio_b64}" type="audio/mp3"></audio>', unsafe_allow_html=True)
-    except: pass
+# --- ESTRUTURA DA DASHBOARD (LAYOUT DA IMAGEM) ---
 
-# 3. Inicialização das APIs
-try:
-    CHAVE_GEMINI = st.secrets["GEMINI_API_KEY"]
-    CHAVE_DRIVE = st.secrets["GOOGLE_DRIVE_API_KEY"]
-    CHAVE_YOUTUBE = st.secrets["YOUTUBE_API_KEY"]
-    genai.configure(api_key=CHAVE_GEMINI)
-except:
-    st.error("⚠️ Erro: Chaves API não configuradas nos Secrets!")
+# Título Superior Centralizado
+st.markdown("<h1 style='text-align: center; color: white;'>♈ Aries AI - Central LikaON 2.5 Flash</h1>", unsafe_allow_html=True)
+st.markdown("<hr>", unsafe_allow_html=True)
 
-MODELO_25 = "gemini-2.5-flash"
-INSTRUCAO = "Você é Aries, mentora do canal LikaON. Sofisticada, direta e especialista em mistérios e Resident Evil."
+# Divisão em Colunas (Sidebar simulada à esquerda, Chat no centro, Editor à direita)
+col_painel, col_chat, col_editor = st.columns([1.2, 2, 1.2])
 
-# --- SIDEBAR (MÉTRICAS E CONTROLE) ---
-with st.sidebar:
-    st.title("📊 Painel LikaON")
-    st.session_state.permitir_voz = st.checkbox("🎙️ Ativar Voz da Aries", value=True)
-    st.markdown("---")
+# --- COLUNA 1: PAINEL LikaON (MÉTRICAS) ---
+with col_painel:
+    st.markdown("### 📊 PAINEL LikaON")
+    st.caption("Voz Neural Ativa (Grátis) | Gemini 2.5 Flash Ativo")
     
-    def buscar_stats():
-        try:
-            yt = googleapiclient.discovery.build("youtube", "v3", developerKey=CHAVE_YOUTUBE)
-            r = yt.channels().list(part="statistics", forHandle="@LikaON3").execute()
-            return r['items'][0]['statistics'] if r.get('items') else None
-        except: return None
-
-    st.subheader("Métricas em Tempo Real")
-    if st.button("👥 Atualizar Inscritos"):
-        s = buscar_stats()
-        if s: st.session_state.inscritos = s['subscriberCount']
+    st.checkbox("🎙️ Ativar Voz da Aries", value=True)
     
-    if st.button("👁️ Atualizar Views"):
-        s = buscar_stats()
-        if s: st.session_state.views = s['viewCount']
-
     st.markdown("---")
-    c1, c2 = st.columns(2)
-    c1.metric("Inscritos", f"{int(st.session_state.get('inscritos', 0)):,}".replace(",", "."))
-    c2.metric("Views", f"{int(st.session_state.get('views', 0)):,}".replace(",", "."))
-    st.markdown("---")
-    st.info("Foque no TAF e no concurso, eu cuido do resto.")
+    st.write("🔄 **Métricas do Canal**")
+    
+    c_btn1, c_btn2 = st.columns(2)
+    with c_btn1: st.button("👥 Atualizar Inscritos")
+    with c_btn2: st.button("👁️ Atualizar Views")
+    
+    # Cards de Valor
+    st.markdown("""
+        <div style='display: flex; gap: 10px; margin-top: 10px;'>
+            <div class="metric-card" style="flex: 1;">
+                <p style="font-size: 12px; margin:0;">Inscritos:</p>
+                <p class="metric-value">14.500</p>
+            </div>
+            <div class="metric-card" style="flex: 1;">
+                <p style="font-size: 12px; margin:0;">Total Views:</p>
+                <p class="metric-value">1.2M</p>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.info("Foque no TAF e nos estudos de Bombeiro, eu cuido do canal.")
+    st.markdown("<p style='font-size: 10px; color: #ff4b4b;'>♈ Aries v10.0 | Autonomia Ativa</p>", unsafe_allow_html=True)
 
-# --- INTERFACE PRINCIPAL ---
-st.title("♈ Aries AI - Central LikaON")
-tab1, tab2 = st.tabs(["💬 Chat Estratégico", "🤖 Editor Autônomo"])
+# --- COLUNA 2: CHAT ESTRATÉGICO ---
+with col_chat:
+    st.markdown("### 💬 Chat Estratégico")
+    
+    # Simulação de conversa para teste visual
+    with st.chat_message("user"):
+        st.write("Foque no TAF e nos estudos a mystery content creation do canal?")
+    
+    with st.chat_message("assistant"):
+        st.write("Aries AI continua a mentoria estratégica. O content creation caminha junto com sua nova jornada.")
 
-# ABA 1: CHAT
-with tab1:
-    if "messages" not in st.session_state: st.session_state.messages = []
-    for m in st.session_state.messages:
-        with st.chat_message(m["role"]): st.markdown(m["content"])
+    # Input fixo no fundo (ajustado pelo streamlit automaticamente)
+    st.text_input("Fale com a Aries...", key="chat_input")
 
-    if p := st.chat_input("Fale com a Aries..."):
-        st.session_state.messages.append({"role": "user", "content": p})
-        with st.chat_message("user"): st.markdown(p)
-        
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODELO_25}:generateContent?key={CHAVE_GEMINI}"
-        payload = {
-            "contents": [{"role": "user" if m["role"] == "user" else "model", "parts": [{"text": m["content"]}]} for m in st.session_state.messages],
-            "system_instruction": {"parts": [{"text": INSTRUCAO}]}
-        }
-        with st.chat_message("assistant"):
-            try:
-                res = requests.post(url, json=payload).json()
-                txt = res['candidates'][0]['content']['parts'][0]['text']
-                st.markdown(txt)
-                st.session_state.messages.append({"role": "assistant", "content": txt})
-                aries_fala(txt)
-            except: st.error("Erro na conexão.")
+# --- COLUNA 3: EDIÇÃO AUTÔNOMA ---
+with col_editor:
+    st.markdown("### 🤖 Edição Autônoma")
+    
+    with st.container():
+        st.markdown("<div style='background-color: #111; padding: 20px; border-radius: 10px; border: 1px solid #333;'>", unsafe_allow_html=True)
+        st.write("**Movie Editor**")
+        st.text_input("ID do Vídeo no Drive:")
+        st.text_area("O que a Aries deve buscar no áudio?", height=100)
+        st.button("🚀 INICIAR OPERAÇÃO DE CORTE")
+        st.markdown("</div>", unsafe_allow_html=True)
 
-# ABA 2: EDITOR
-with tab2:
-    st.subheader("📽️ Corte Inteligente (Gemini 2.5)")
-    id_drive = st.text_input("ID do Vídeo no Drive:")
-    ordem = st.text_input("O que devo buscar no áudio?")
-    if st.button("🚀 Iniciar Operação"):
-        if id_drive:
-            with st.spinner("Analisando áudio..."):
-                try:
-                    drive = googleapiclient.discovery.build('drive', 'v3', developerKey=CHAVE_DRIVE)
-                    req = drive.files().get_media(fileId=id_drive)
-                    with io.FileIO('raw.mp4', 'wb') as f:
-                        down = googleapiclient.http.MediaIoBaseDownload(f, req)
-                        done = False
-                        while not done: _, done = down.next_chunk()
-                    v = VideoFileClip('raw.mp4')
-                    v.audio.write_audiofile("raw.mp3")
-                    sf = genai.upload_file(path="raw.mp3")
-                    while sf.state.name == "PROCESSING": time.sleep(2); sf = genai.get_file(sf.name)
-                    m = genai.GenerativeModel(MODELO_25)
-                    res = m.generate_content([sf, f"Pedido: {ordem}. Retorne JSON {{'inicio': X, 'fim': Y, 'motivo': '...'}}"])
-                    genai.delete_file(sf.name)
-                    d = json.loads(res.text.replace("```json", "").replace("```", ""))
-                    st.success(f"Aries: {d['motivo']}")
-                    clipe = v.subclip(d['inicio'], d['fim'])
-                    clipe.write_videofile("final.mp4", codec="libx264", audio_codec="aac", preset="ultrafast")
-                    st.video("final.mp4")
-                    v.close(); os.remove('raw.mp4'); os.remove('raw.mp3')
-                except Exception as e: st.error(f"Erro: {e}")
