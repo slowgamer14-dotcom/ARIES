@@ -1,94 +1,55 @@
 import streamlit as st
-import requests
 import google.generativeai as genai
 import base64
 import asyncio
 import edge_tts
-import os
 
-# --- 1. CONFIGURAÇÃO RESPONSIVA E TÍTULO ---
-st.set_page_config(
-    page_title="Aries AI",
-    page_icon="♈",
-    layout="wide",  # "wide" permite o uso de colunas responsivas
-    initial_sidebar_state="collapsed" # Sidebar recolhida por defeito para mobile
-)
+# 1. CONFIGURAÇÃO DA PÁGINA E RESPONSIVIDADE
+st.set_page_config(page_title="Aries AI", page_icon="♈", layout="wide")
 
-# --- 2. CSS CUSTOMIZADO PARA DESIGN RESPONSIVO E EFEITO GLOW ---
+# 2. DESIGN UNIFICADO (PC/CELULAR) - CSS NEON
 st.markdown("""
     <style>
-    /* Estilos Gerais (Dark Mode) */
-    .stApp {
-        background-color: #050505;
-        color: #e0e0e0;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
+    /* Fundo Escuro Absoluto */
+    .stApp { background-color: #050505; color: #ffffff; }
     
-    /* Configurações Responsivas (Media Queries) */
+    /* Ajuste para Celular */
     @media (max-width: 768px) {
-        /* No Telemóvel, as colunas são empilhadas verticalmente */
-        [data-testid="stHorizontalBlock"] {
-            flex-direction: column !important;
-        }
-        [data-testid="stColumn"] {
-            width: 100% !important;
-            margin-bottom: 20px;
-        }
+        [data-testid="stHorizontalBlock"] { flex-direction: column !important; }
+        .avatar-img { width: 120px !important; height: 120px !important; }
     }
 
-    /* Avatar do Avatar Holográfico com Efeito de Brilho */
+    /* Avatar Holográfico Central */
     .avatar-container {
         display: flex;
         justify-content: center;
-        align-items: center;
-        margin-top: 20px;
-        margin-bottom: 30px;
+        margin: 20px 0;
     }
-    
     .avatar-img {
-        width: 150px;
-        height: 150px;
+        width: 180px; height: 180px;
         border-radius: 50%;
         border: 2px solid #ff4b4b;
-        box-shadow: 0 0 25px rgba(255, 75, 75, 0.6);
+        box-shadow: 0 0 30px rgba(255, 75, 75, 0.5);
         object-fit: cover;
     }
 
-    /* Balões de Chat Estilo Minimalista (Mais largos no mobile) */
+    /* Chat Estilo 'Clean Glass' */
     .stChatMessage {
-        background-color: rgba(255, 255, 255, 0.05) !important;
-        border-radius: 10px !important;
-        border: none !important;
-        margin-bottom: 12px;
+        background-color: rgba(255, 255, 255, 0.03) !important;
+        border-radius: 12px !important;
+        margin-bottom: 10px;
     }
 
-    /* Input de Comando (Estilo Mobile) */
-    div[data-testid="stChatInput"] {
-        padding: 15px;
-    }
-
-    /* Botões e Inputs com Estilo Neon Subtil */
-    .stButton > button, .stTextInput input {
-        background-color: transparent;
-        color: #ff4b4b;
-        border: 1px solid #ff4b4b;
-        border-radius: 5px;
-        transition: 0.3s;
-    }
+    /* Input fixo inferior */
+    div[data-testid="stChatInput"] { padding: 15px; }
     
-    .stButton > button:hover {
-        background-color: #ff4b4b;
-        color: white;
-        box-shadow: 0 0 10px #ff4b4b;
-    }
-    
-    /* Esconder elementos desnecessários */
+    /* Esconder menus padrão */
     #MainMenu, footer, header {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. LÓGICA DE VOZ (GRÁTIS E DIRETA) ---
-def aries_fala(texto):
+# 3. LÓGICA DE VOZ (Aries Falando)
+def aries_voz(texto):
     try:
         async def generate():
             communicate = edge_tts.Communicate(texto, "pt-BR-FranciscaNeural")
@@ -96,7 +57,6 @@ def aries_fala(texto):
             async for chunk in communicate.stream():
                 if chunk["type"] == "audio": audio_data += chunk["data"]
             return audio_data
-        
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         audio_content = loop.run_until_complete(generate())
@@ -104,66 +64,54 @@ def aries_fala(texto):
         st.markdown(f'<audio autoplay style="display:none"><source src="data:audio/mp3;base64,{b64}"></audio>', unsafe_allow_html=True)
     except: pass
 
-# --- 4. INICIALIZAÇÃO DA IA ---
+# 4. CONFIGURAÇÃO GEMINI 2.5 FLASH
 try:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    model = genai.GenerativeModel("gemini-1.5-flash")
-    # Instrução limpa: apenas "Aries"
-    INSTRUCAO = "Você é Aries. Uma IA técnica, direta e sofisticada. Foco: Canais Dark e suporte ao criador (futuro Bombeiro)."
+    # O modelo 'gemini-2.5-flash' é configurado via System Instruction
+    model = genai.GenerativeModel(
+        model_name="gemini-1.5-flash", # Use 1.5-flash para máxima compatibilidade estável
+        system_instruction="Você é Aries. Uma IA técnica e sofisticada. Suas respostas são diretas e focadas em tecnologia, mistérios e produtividade. Nunca use o nome LikaON ou o termo Mentora. Trate o usuário com foco em seus objetivos de canal e carreira."
+    )
 except:
-    st.error("Configure a GEMINI_API_KEY nos Secrets.")
+    st.error("Erro: Verifique sua GEMINI_API_KEY nos Secrets.")
 
-# --- 5. INTERFACE UNIFICADA (PC E CELULAR) ---
+# --- INTERFACE ---
 
-# Título Centralizado
-st.markdown("<h2 style='text-align: center;'>Aries AI</h2>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; font-size: 24px;'>Aries v2.5</h1>", unsafe_allow_html=True)
 
-# Layout Responsivo: Duas Colunas (Avatar + Chat)
-col_avatar, col_chat = st.columns([1, 2.5])
+# Divisão PC (Lado a Lado) / Celular (Empilhado)
+col_personagem, col_conversa = st.columns([1, 2])
 
-# COLUNA DO AVATAR (Fica no TOPO no Mobile)
-with col_avatar:
-    # Exibição do Avatar (Usa a tua imagem preferida aqui)
-    st.markdown(f"""
+with col_personagem:
+    st.markdown("""
         <div class="avatar-container">
             <img src="https://raw.githubusercontent.com/slowgamer14-dotcom/ARIES/main/aries_avatar.png" class="avatar-img">
         </div>
-        """, unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #ff4b4b;'>Aries Ativa</p>", unsafe_allow_html=True)
 
-# COLUNA DO CHAT (Fica ABAIXO do Avatar no Mobile)
-with col_chat:
+with col_conversa:
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-    # Área de Mensagens
     for m in st.session_state.messages:
         with st.chat_message(m["role"]):
             st.markdown(m["content"])
 
-# Input de Comando (Fica fixo na parte inferior)
-if p := st.chat_input("Comando..."):
-    st.session_state.messages.append({"role": "user", "content": p})
-    # Atualiza a área de chat antes de chamar a IA
-    with col_chat:
-        with st.chat_message("user"):
-            st.markdown(p)
+# Entrada de dados
+if prompt := st.chat_input("Comando para Aries..."):
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with col_conversa:
+        with st.chat_message("user"): st.markdown(prompt)
     
-    # Chama o Gemini
     try:
-        # Envia o contexto da conversa
-        chat = model.start_chat(history=[
-            {"role": "user" if m["role"] == "user" else "model", "parts": [m["content"]]} 
-            for m in st.session_state.messages[:-1]
-        ])
-        response = chat.send_message(p)
+        response = model.generate_content(prompt)
         txt = response.text
-        # Adiciona a resposta à área de chat
-        with col_chat:
-            with st.chat_message("assistant"):
-                st.markdown(txt)
+        with col_conversa:
+            with st.chat_message("assistant"): st.markdown(txt)
         st.session_state.messages.append({"role": "assistant", "content": txt})
-        aries_fala(txt)
-    except Exception as e:
-        st.error("Erro na conexão com a Aries.")
+        aries_voz(txt)
+    except:
+        st.error("Conexão interrompida.")
 
 
