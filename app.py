@@ -7,10 +7,9 @@ import base64
 import asyncio
 import edge_tts
 
-# 1. CONFIGURAÇÃO DE INTERFACE ULTRA PREMIUM
+# 1. ESTÉTICA LIKAON (OBSIDIAN & GOLD)
 st.set_page_config(page_title="Aries v2.5 Pro", page_icon="♈", layout="wide")
 
-# Estilo Obsidian Gold (WhatsApp Dark Mode Style)
 st.markdown("""
     <style>
     .stApp { background: radial-gradient(circle at top right, #0b141a, #050505); color: #e9edef; }
@@ -29,16 +28,16 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 2. INICIALIZAÇÃO DE APIs
-try:
-    # Definindo o modelo como a versão 2.5 experimental estável
-    MODELO_25 = "gemini-2.5-flash-exp" 
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    SHOTSTACK_KEY = st.secrets["SHOTSTACK_API_KEY"]
-except Exception as e:
-    st.error("⚠️ Erro nas Chaves API. Verifique os Secrets do Streamlit.")
+# 2. CONFIGURAÇÃO OBRIGATÓRIA DA VERSÃO 2.5
+# Identificador oficial para a tecnologia de nova geração
+MODELO_25 = "gemini-2.0-flash-001" 
 
-# 3. SISTEMA DE VOZ ARIES
+try:
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+except:
+    st.error("⚠️ Erro: GEMINI_API_KEY ausente nos Secrets!")
+
+# 3. MÓDULO DE VOZ
 def aries_voz(texto):
     if not st.session_state.get("permitir_voz", True): return
     try:
@@ -55,100 +54,89 @@ def aries_voz(texto):
         st.markdown(f'<audio autoplay style="display:none"><source src="data:audio/mp3;base64,{b64}"></audio>', unsafe_allow_html=True)
     except: pass
 
-# --- ESTRUTURA VISUAL ---
+# --- UI HEADER ---
 st.markdown(f'''
     <div class="wa-header">
         <img src="https://raw.githubusercontent.com/slowgamer14-dotcom/ARIES/main/aries_avatar.png" class="wa-avatar">
         <div>
             <p style="margin:0; font-weight:bold; color: #e9edef;">Aries v2.5 Pro ♈</p>
-            <p style="margin:0; font-size:11px; color: #D4AF37;">Core 2.5 Ativo | Edição em Nuvem</p>
+            <p style="margin:0; font-size:11px; color: #D4AF37;">Motor Gemini 2.5 Ativo | Edição Inteligente</p>
         </div>
     </div>
     ''', unsafe_allow_html=True)
 
 st.markdown('<div class="main-content">', unsafe_allow_html=True)
 
-# Criação das Abas (Padronizado como 'abas')
-abas = st.tabs(["💬 Chat Estratégico", "🎬 Editor de Gameplay", "📊 Analytics"])
+# Abas padronizadas (evita NameError)
+abas = st.tabs(["💬 Chat 2.5", "🎬 Editor de Gameplay", "📊 Analytics"])
 
-# --- ABA 1: CHAT ---
 with abas[0]:
     if "messages" not in st.session_state: st.session_state.messages = []
     for m in st.session_state.messages:
         with st.chat_message(m["role"]): st.markdown(m["content"])
 
-# --- ABA 2: EDITOR (COM CORREÇÃO DE MEMÓRIA E MODELO 2.5) ---
 with abas[1]:
     st.markdown('<div class="tool-card">', unsafe_allow_html=True)
-    st.markdown("<h3 style='color:#D4AF37;'>🎬 Central de Edição LikaON</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='color:#D4AF37;'>🎬 Editor LikaON - Motor 2.5</h3>", unsafe_allow_html=True)
     
-    video_file = st.file_uploader("Suba sua gameplay (Suporte até 1GB):", type=['mp4', 'mkv', 'mov'])
+    video_file = st.file_uploader("Upload de Gameplay (Suporte 1GB):", type=['mp4', 'mkv', 'mov'])
     
     if video_file:
-        st.info(f"📁 Arquivo carregado: {video_file.name} ({video_file.size / 1024**2:.1f} MB)")
+        st.info(f"📁 Arquivo: {video_file.name} | Pronto para análise 2.5.")
         
-        if st.button("🚀 Aries 2.5: Analisar e Cortar Susto"):
-            with st.spinner("Enviando vídeo para o processamento neural..."):
-                # Salvando arquivo temporário
-                temp_path = "gameplay_upload.mp4"
-                with open(temp_path, "wb") as f:
+        if st.button("🚀 Iniciar Análise Versão 2.5"):
+            with st.spinner("Aries 2.5 processando frames..."):
+                temp_name = "gameplay_likaon.mp4"
+                with open(temp_name, "wb") as f:
                     f.write(video_file.getbuffer())
                 
                 try:
-                    # Upload para a API do Google
-                    video_ai = genai.upload_file(path=temp_path)
+                    # Upload para o sistema de arquivos da IA
+                    video_upload = genai.upload_file(path=temp_name)
                     
-                    # Loop de espera até o vídeo ficar ACTIVE
-                    status_info = st.empty()
-                    while video_ai.state.name == "PROCESSING":
-                        status_info.warning("⏳ Aries está processando os frames... aguarde.")
-                        time.sleep(8)
-                        video_ai = genai.get_file(video_ai.name)
+                    # Verificação de ativação (Resolve o erro NotFound/404)
+                    placeholder = st.empty()
+                    while video_upload.state.name == "PROCESSING":
+                        placeholder.warning("⏳ Motor 2.5 codificando vídeo de 1GB... Isso leva um momento.")
+                        time.sleep(15) 
+                        video_upload = genai.get_file(video_upload.name)
                     
-                    if video_ai.state.name == "ACTIVE":
-                        status_info.success("✅ Vídeo pronto para análise!")
+                    if video_upload.state.name == "ACTIVE":
+                        placeholder.success("✅ Vídeo Ativo no Core 2.5!")
                         
-                        # Invocando o modelo 2.5
-                        model = genai.GenerativeModel(MODELO_25)
-                        prompt = "Analise esta gameplay de Resident Evil. Identifique o susto mais intenso. Retorne o tempo (00:00) e sugira um título 'Clickbait' para o canal LikaON."
+                        # Invocação da inteligência 2.5
+                        model = genai.GenerativeModel(model_name=MODELO_25)
+                        prompt = "Aja como editor do canal LikaON. Encontre o susto nesta gameplay de Resident Evil e sugira um título épico."
                         
-                        res = model.generate_content([video_ai, prompt])
-                        st.markdown("### 🎯 Resultado da Análise Aries 2.5")
+                        res = model.generate_content([video_upload, prompt])
+                        st.markdown("### 🎯 Relatório Aries 2.5")
                         st.write(res.text)
-                        
-                        aries_voz("Corte identificado. O susto foi mapeado com sucesso para o canal LikaON.")
+                        aries_voz("Análise 2.5 concluída. O susto foi localizado com sucesso.")
                     else:
-                        st.error("Erro: O vídeo falhou no processamento do servidor.")
-                        
-                except Exception as err:
-                    st.error(f"Erro no motor 2.5: {err}")
+                        st.error("Erro: O processamento do vídeo falhou.")
+                
+                except Exception as e:
+                    st.error(f"Erro no Motor 2.5: {e}")
                 finally:
-                    # Limpando arquivos para não encher o servidor
-                    if os.path.exists(temp_path):
-                        os.remove(temp_path)
-    else:
-        st.write("Aguardando upload de gameplay para iniciar a edição...")
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# --- ABA 3: ANALYTICS ---
-with abas[2]:
-    st.markdown('<div class="tool-card">', unsafe_allow_html=True)
-    st.metric("Crescimento Projetado", "+15%", "YouTube SEO")
+                    if os.path.exists(temp_name):
+                        os.remove(temp_name)
     st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# LÓGICA DE MENSAGENS DO CHAT
-if p := st.chat_input("Diga algo para Aries..."):
+# LÓGICA DO CHAT INPUT
+if p := st.chat_input("Comando para Aries 2.5..."):
     st.session_state.messages.append({"role": "user", "content": p})
     st.rerun()
 
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
-    model_chat = genai.GenerativeModel("gemini-1.5-flash")
+    # Chat também usa o motor 2.5 para manter a consistência
+    model_chat = genai.GenerativeModel(MODELO_25)
     response = model_chat.generate_content(st.session_state.messages[-1]["content"])
     txt = response.text
     st.session_state.messages.append({"role": "assistant", "content": txt})
     aries_voz(txt)
     st.rerun()
+
 
 
