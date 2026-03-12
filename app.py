@@ -32,7 +32,7 @@ st.markdown("""
 # 2. INICIALIZAÇÃO DE APIs
 try:
     # Definindo o modelo como a versão 2.5 experimental estável
-    MODELO_25 = "gemini-2.0-flash-exp" 
+    MODELO_25 = "gemini-2.5-flash-exp" 
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     SHOTSTACK_KEY = st.secrets["SHOTSTACK_API_KEY"]
 except Exception as e:
@@ -150,4 +150,5 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
     st.session_state.messages.append({"role": "assistant", "content": txt})
     aries_voz(txt)
     st.rerun()
+
 
