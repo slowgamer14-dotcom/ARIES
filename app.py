@@ -7,18 +7,16 @@ import edge_tts
 # 1. CONFIGURAÇÃO DO APP
 st.set_page_config(page_title="Aries v2.5", page_icon="♈", layout="wide")
 
-# 2. DESIGN RESPONSIVO E UI CLEAN
+# 2. DESIGN RESPONSIVO E UI (PC/CELULAR)
 st.markdown("""
     <style>
     .stApp { background-color: #050505; color: #ffffff; }
     
-    /* Layout Adaptável */
     @media (max-width: 768px) {
         [data-testid="stHorizontalBlock"] { flex-direction: column !important; }
         .avatar-img { width: 110px !important; height: 110px !important; }
     }
 
-    /* Avatar Aries */
     .avatar-container { display: flex; justify-content: center; margin: 10px 0; }
     .avatar-img {
         width: 150px; height: 150px;
@@ -28,18 +26,15 @@ st.markdown("""
         object-fit: cover;
     }
 
-    /* Estilização de Containers (Cards) */
     .metric-card {
         background: rgba(255, 255, 255, 0.05);
         padding: 15px;
         border-radius: 10px;
         border-left: 3px solid #ff4b4b;
-        margin-bottom: 10px;
+        margin-bottom: 15px;
     }
 
-    /* Chat */
     .stChatMessage { background-color: rgba(255, 75, 75, 0.03) !important; border-radius: 12px !important; }
-    
     #MainMenu, footer, header {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
@@ -66,18 +61,19 @@ def aries_fala(texto):
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     model = genai.GenerativeModel(
-        model_name="gemini-1.5-flash", # Mantendo flash pela velocidade no mobile
-        system_instruction="Você é Aries. Uma IA v2.5 técnica e direta. Ajuda com vídeos de mistério e estudos para Bombeiro. Sem nomes como LikaON."
+        model_name="gemini-1.5-flash", 
+        system_instruction="Você é Aries. Uma IA v2.5 técnica e direta. Ajuda com vídeos de mistério e estudos. Identifique-se apenas como Aries."
     )
 else:
     st.error("Chave API ausente.")
 
-# --- SIDEBAR (CONTROLES RÁPIDOS) ---
+# --- SIDEBAR (CONTROLES) ---
 with st.sidebar:
-    st.title("♈ Painel Aries")
-    st.session_state.voz_ativa = st.toggle("Voz da Aries", value=True)
-    st.divider()
-    st.button("Limpar Conversa", on_click=lambda: st.session_state.update(messages=[]))
+    st.title("♈ Aries v2.5")
+    st.session_state.voz_ativa = st.toggle("Ativar Voz", value=True)
+    if st.button("Limpar Histórico"):
+        st.session_state.messages = []
+        st.rerun()
 
 # --- INTERFACE PRINCIPAL ---
 col_left, col_right = st.columns([1, 2.5])
@@ -85,35 +81,41 @@ col_left, col_right = st.columns([1, 2.5])
 with col_left:
     st.markdown("""<div class="avatar-container"><img src="https://raw.githubusercontent.com/slowgamer14-dotcom/ARIES/main/aries_avatar.png" class="avatar-img"></div>""", unsafe_allow_html=True)
     
-    # ABA DE FERRAMENTAS (EDIÇÃO E ANALYTICS)
-    tab_edit, tab_ana = st.tabs(["🎬 Edição", "📊 Analytics"])
+    # FERRAMENTAS
+    tab_ana, tab_edit = st.tabs(["📊 Analytics", "🎬 Edição"])
     
-    with tab_edit:
-        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-        video_id = st.text_input("ID do Vídeo (Drive/YT)")
-        st.multiselect("Ações de Edição", ["Cortes Secos", "Legendas Auto", "Remover Silêncio", "Efeito Glitch"])
-        if st.button("Iniciar Processamento"):
-            st.info("Aries está processando o vídeo...")
-        st.markdown('</div>', unsafe_allow_html=True)
-
     with tab_ana:
         st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-        st.write("**Desempenho Canal Dark**")
-        st.metric("Inscritos", "14.5K", "+120")
-        st.metric("Views (24h)", "3.2K", "+15%")
-        if st.button("Gerar Relatório"):
-            st.success("Relatório de tendências de mistério pronto.")
+        st.write("**Análise de Canal por Link**")
+        canal_link = st.text_input("Cole o link do YouTube aqui:", placeholder="https://youtube.com/@...")
+        
+        if st.button("Escanear Canal"):
+            if canal_link:
+                with st.spinner("Aries acessando metadados..."):
+                    # Aqui entra a lógica de conexão futura. Por enquanto, a Aries simula a leitura.
+                    st.success(f"Canal detectado.")
+                    st.metric("Engajamento Estimado", "8.4%", "+1.2%")
+                    st.write("📈 *Tendência de busca para este nicho: Alta*")
+            else:
+                st.warning("Insira um link válido.")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with tab_edit:
+        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+        st.write("**Workflow de Produção**")
+        st.text_input("ID do Arquivo")
+        st.selectbox("Prioridade de IA", ["Legendas Dinâmicas", "Color Grading", "Cortes Estratégicos"])
+        if st.button("Processar Vídeo"):
+            st.info("Iniciando renderização via Cloud...")
         st.markdown('</div>', unsafe_allow_html=True)
 
 with col_right:
     if "messages" not in st.session_state: st.session_state.messages = []
     
-    chat_container = st.container(height=400 if not st.session_state.get('is_mobile') else 300)
-    with chat_container:
-        for m in st.session_state.messages:
-            with st.chat_message(m["role"]): st.markdown(m["content"])
+    for m in st.session_state.messages:
+        with st.chat_message(m["role"]): st.markdown(m["content"])
 
-if prompt := st.chat_input("Comando para Aries..."):
+if prompt := st.chat_input("Comando..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with col_right:
         with st.chat_message("user"): st.markdown(prompt)
@@ -126,6 +128,6 @@ if prompt := st.chat_input("Comando para Aries..."):
         st.session_state.messages.append({"role": "assistant", "content": txt})
         aries_fala(txt)
     except:
-        st.error("Erro no Core 2.5.")
+        st.error("Conexão interrompida com o Core 2.5.")
 
 
