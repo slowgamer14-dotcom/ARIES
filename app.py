@@ -80,3 +80,33 @@ col_avatar, col_chat = st.columns([1, 2.5])
 with col_avatar:
     st.markdown("""
         <div class="avatar-container">
+            <img src="https://raw.githubusercontent.com/slowgamer14-dotcom/ARIES/main/aries_avatar.png" class="avatar-img">
+        </div>
+    """, unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; font-size: 11px; color: #ff4b4b; letter-spacing: 2px;'>SYSTEM 2.5 ACTIVE</p>", unsafe_allow_html=True)
+
+with col_chat:
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+
+    for m in st.session_state.messages:
+        with st.chat_message(m["role"]):
+            st.markdown(m["content"])
+
+# INPUT DE COMANDO
+if prompt := st.chat_input("Comando..."):
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with col_chat:
+        with st.chat_message("user"): st.markdown(prompt)
+    
+    try:
+        # Gerando resposta com o motor 2.5
+        response = model.generate_content(prompt)
+        txt = response.text
+        with col_chat:
+            with st.chat_message("assistant"): st.markdown(txt)
+        st.session_state.messages.append({"role": "assistant", "content": txt})
+        aries_fala(txt)
+    except Exception as e:
+        st.error("Erro de conexão com o Core 2.5. Verifique a API Key ou limite de uso.")
+
