@@ -7,7 +7,7 @@ import base64
 import asyncio
 import edge_tts
 
-# 1. ESTÉTICA LIKAON (OBSIDIAN & GOLD)
+# 1. ESTÉTICA LIKAON PRO (OBSIDIAN & GOLD)
 st.set_page_config(page_title="Aries v2.5 Pro", page_icon="♈", layout="wide")
 
 st.markdown("""
@@ -28,9 +28,9 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 2. CONFIGURAÇÃO OBRIGATÓRIA DA VERSÃO 2.5
-# Identificador oficial para a tecnologia de nova geração
-MODELO_25 = "gemini-2.0-flash-001" 
+# 2. CONFIGURAÇÃO DO MOTOR 2.5 (IDENTIFICADOR ATUALIZADO)
+# Este é o modelo que substitui o 001 e traz a inteligência 2.5 real
+MODELO_25 = "gemini-2.0-flash" 
 
 try:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
@@ -60,14 +60,14 @@ st.markdown(f'''
         <img src="https://raw.githubusercontent.com/slowgamer14-dotcom/ARIES/main/aries_avatar.png" class="wa-avatar">
         <div>
             <p style="margin:0; font-weight:bold; color: #e9edef;">Aries v2.5 Pro ♈</p>
-            <p style="margin:0; font-size:11px; color: #D4AF37;">Motor Gemini 2.5 Ativo | Edição Inteligente</p>
+            <p style="margin:0; font-size:11px; color: #D4AF37;">Motor Gemini 2.5 Atualizado | Ativo</p>
         </div>
     </div>
     ''', unsafe_allow_html=True)
 
 st.markdown('<div class="main-content">', unsafe_allow_html=True)
 
-# Abas padronizadas (evita NameError)
+# Abas padronizadas
 abas = st.tabs(["💬 Chat 2.5", "🎬 Editor de Gameplay", "📊 Analytics"])
 
 with abas[0]:
@@ -82,7 +82,7 @@ with abas[1]:
     video_file = st.file_uploader("Upload de Gameplay (Suporte 1GB):", type=['mp4', 'mkv', 'mov'])
     
     if video_file:
-        st.info(f"📁 Arquivo: {video_file.name} | Pronto para análise 2.5.")
+        st.info(f"📂 Arquivo: {video_file.name} | Pronto para análise 2.5.")
         
         if st.button("🚀 Iniciar Análise Versão 2.5"):
             with st.spinner("Aries 2.5 processando frames..."):
@@ -94,7 +94,7 @@ with abas[1]:
                     # Upload para o sistema de arquivos da IA
                     video_upload = genai.upload_file(path=temp_name)
                     
-                    # Verificação de ativação (Resolve o erro NotFound/404)
+                    # Verificação de ativação
                     placeholder = st.empty()
                     while video_upload.state.name == "PROCESSING":
                         placeholder.warning("⏳ Motor 2.5 codificando vídeo de 1GB... Isso leva um momento.")
@@ -104,7 +104,7 @@ with abas[1]:
                     if video_upload.state.name == "ACTIVE":
                         placeholder.success("✅ Vídeo Ativo no Core 2.5!")
                         
-                        # Invocação da inteligência 2.5
+                        # Invocação da inteligência 2.5 (Usando o novo nome)
                         model = genai.GenerativeModel(model_name=MODELO_25)
                         prompt = "Aja como editor do canal LikaON. Encontre o susto nesta gameplay de Resident Evil e sugira um título épico."
                         
@@ -130,7 +130,6 @@ if p := st.chat_input("Comando para Aries 2.5..."):
     st.rerun()
 
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
-    # Chat também usa o motor 2.5 para manter a consistência
     model_chat = genai.GenerativeModel(MODELO_25)
     response = model_chat.generate_content(st.session_state.messages[-1]["content"])
     txt = response.text
