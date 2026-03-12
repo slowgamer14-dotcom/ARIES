@@ -73,50 +73,42 @@ with abas[0]:
     if "messages" not in st.session_state: st.session_state.messages = []
     for m in st.session_state.messages:
         with st.chat_message(m["role"]): st.markdown(m["content"])
-
-with abas[1]: # EDITOR DE GAMEPLAY (O SEGREDO DO 1GB)
+with abas[1]: # EDITOR COM UPLOAD DIRETO
     st.markdown('<div class="tool-card">', unsafe_allow_html=True)
-    st.markdown("<h3 style='color:#D4AF37;'>🎬 Renderização de Gameplay</h3>", unsafe_allow_html=True)
-    drive_id = st.text_input("ID do Vídeo no Drive (Gameplay > 1GB):")
-    prompt_edicao = st.text_area("Instruções para Aries:", "Encontre o momento do susto, adicione um zoom e corte em 30 segundos.")
-
-    if st.button("🚀 Renderizar Vídeo Final"):
-        if drive_id:
-            with st.spinner("Aries analisando timestamps e enviando para o Shotstack..."):
-                # Simulação da chamada de API
-                url = "https://api.shotstack.io/v1/render"
-                headers = {"x-api-key": SHOTSTACK_KEY, "Content-Type": "application/json"}
+    st.markdown("<h3 style='color:#D4AF37;'>🎬 Upload & Edição Direta</h3>", unsafe_allow_html=True)
+    
+    # Campo de Upload (Suporta até 200MB por padrão no Streamlit, expansível)
+    video_file = st.file_uploader("Arraste sua gameplay aqui (MP4, MOV, AVI)", type=['mp4', 'mov', 'avi'])
+    
+    if video_file is not None:
+        st.video(video_file) # Preview do vídeo que você subiu
+        
+        if st.button("🚀 Aries, Analisar e Editar"):
+            with st.spinner("Aries está assistindo ao vídeo..."):
+                # Salva o arquivo temporariamente
+                with open("temp_video.mp4", "wb") as f:
+                    f.write(video_file.getbuffer())
                 
-                # A mágica: Aries gera este JSON automaticamente
-                payload = {
-                    "timeline": {
-                        "tracks": [{"clips": [{"asset": {"type": "video", "src": f"https://drive.google.com/uc?id={drive_id}"}, "start": 0, "length": 15}]}]
-                    },
-                    "output": {"format": "mp4", "resolution": "hd"}
-                }
+                # Envia para o Gemini 2.5 Flash
+                video_ai = genai.upload_file(path="temp_video.mp4")
                 
-                res = requests.post(url, json=payload, headers=headers)
-                if res.status_code == 201:
-                    render_id = res.json()['response']['id']
-                    st.success(f"Vídeo em processamento! ID: {render_id}")
-                    st.info("Aries está cuidando da renderização na nuvem. O link aparecerá aqui em instantes.")
-                else:
-                    st.error("Erro ao conectar com o Shotstack. Verifique sua chave Sandbox.")
-        else:
-            st.warning("Aries precisa do ID do vídeo no seu Drive.")
+                # Espera o processamento do Google
+                while video_ai.state.name == "PROCESSING":
+                    time.sleep(2)
+                    video_ai = genai.get_file(video_ai.name)
+                
+                # Aries gera os cortes baseada no vídeo real
+                model = genai.GenerativeModel(MODELO_25)
+                res = model.generate_content([video_ai, "Identifique o momento de maior tensão e sugira um corte de 30 segundos em formato JSON."])
+                
+                st.success("Análise concluída!")
+                st.write(res.text)
+                
+                # Limpeza
+                genai.delete_file(video_ai.name)
+                os.remove("temp_video.mp4")
+    
     st.markdown('</div>', unsafe_allow_html=True)
 
-# LÓGICA DE MENSAGENS
-if p := st.chat_input("Diga algo para Aries..."):
-    st.session_state.messages.append({"role": "user", "content": p})
-    st.rerun()
-
-if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
-    model = genai.GenerativeModel("gemini-1.5-flash") # Usando flash para resposta rápida de chat
-    response = model.generate_content(st.session_state.messages[-1]["content"])
-    txt = response.text
-    st.session_state.messages.append({"role": "assistant", "content": txt})
-    aries_voz(txt)
-    st.rerun()
-
 st.markdown('</div>', unsafe_allow_html=True)
+
