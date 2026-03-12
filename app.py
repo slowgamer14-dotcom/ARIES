@@ -29,15 +29,15 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # 2. MOTOR OBRIGATÓRIO VERSÃO 2.5 (IDENTIFICADOR ATUALIZADO)
-# Este é o modelo 'Thinking/Flash' que carrega a tecnologia 2.5
-MODELO_25 = "gemini-2.0-flash-exp" 
+# Este modelo carrega a inteligência 2.5 e suporta v1beta e v1
+MODELO_25 = "gemini-2.5-flash" 
 
 try:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 except:
     st.error("⚠️ Erro: GEMINI_API_KEY ausente nos Secrets!")
 
-# 3. MÓDULO DE VOZ
+# 3. MÓDULO DE VOZ ARIES
 def aries_voz(texto):
     if not st.session_state.get("permitir_voz", True): return
     try:
@@ -60,14 +60,14 @@ st.markdown(f'''
         <img src="https://raw.githubusercontent.com/slowgamer14-dotcom/ARIES/main/aries_avatar.png" class="wa-avatar">
         <div>
             <p style="margin:0; font-weight:bold; color: #e9edef;">Aries v2.5 Pro ♈</p>
-            <p style="margin:0; font-size:11px; color: #D4AF37;">Motor Gemini 2.5 Ativo | Nova Geração</p>
+            <p style="margin:0; font-size:11px; color: #D4AF37;">Motor Gemini 2.5 Atualizado | Estável</p>
         </div>
     </div>
     ''', unsafe_allow_html=True)
 
 st.markdown('<div class="main-content">', unsafe_allow_html=True)
 
-# Abas padronizadas
+# Abas padronizadas (Correção do NameError)
 abas = st.tabs(["💬 Chat 2.5", "🎬 Editor de Gameplay", "📊 Analytics"])
 
 with abas[0]:
@@ -86,14 +86,16 @@ with abas[1]:
         
         if st.button("🚀 Iniciar Análise Versão 2.5"):
             with st.spinner("Aries 2.5 processando frames..."):
-                temp_name = "gameplay_final.mp4"
+                temp_name = "gameplay_aries.mp4"
                 with open(temp_name, "wb") as f:
                     f.write(video_file.getbuffer())
                 
                 try:
+                    # Faz o upload para a API
                     video_upload = genai.upload_file(path=temp_name)
                     
                     placeholder = st.empty()
+                    # Aguarda o status ficar ACTIVE para evitar o 404 de processamento
                     while video_upload.state.name == "PROCESSING":
                         placeholder.warning("⏳ Motor 2.5 codificando vídeo de 1GB... Isso leva um momento.")
                         time.sleep(15) 
@@ -102,14 +104,14 @@ with abas[1]:
                     if video_upload.state.name == "ACTIVE":
                         placeholder.success("✅ Vídeo Ativo no Core 2.5!")
                         
-                        # Invocação do motor 2.5 corrigido
+                        # Invocação do motor 2.5 estável
                         model = genai.GenerativeModel(model_name=MODELO_25)
                         prompt = "Aja como editor do canal LikaON. Encontre o susto nesta gameplay de Resident Evil e sugira um título épico."
                         
                         res = model.generate_content([video_upload, prompt])
                         st.markdown("### 🎯 Relatório Final Aries 2.5")
                         st.write(res.text)
-                        aries_voz("Análise 2.5 concluída. O susto foi localizado com sucesso.")
+                        aries_voz("Análise 2.5 concluída. Destaque localizado.")
                     else:
                         st.error("Erro: O processamento do vídeo falhou.")
                 
@@ -134,3 +136,4 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
     st.session_state.messages.append({"role": "assistant", "content": txt})
     aries_voz(txt)
     st.rerun()
+
