@@ -1,139 +1,76 @@
 import streamlit as st
 import google.generativeai as genai
-import requests
 import time
 import os
-import base64
-import asyncio
-import edge_tts
+import re # Para extrair o tempo da resposta
+from moviepy.editor import VideoFileClip
 
-# 1. SETUP VISUAL LIKAON (OBSIDIAN & GOLD)
-st.set_page_config(page_title="Aries v2.5 Pro", page_icon="♈", layout="wide")
-
-st.markdown("""
-    <style>
-    .stApp { background: radial-gradient(circle at top right, #0b141a, #050505); color: #e9edef; }
-    .wa-header {
-        display: flex; align-items: center; padding: 15px 25px;
-        background: rgba(32, 44, 51, 0.9); backdrop-filter: blur(15px);
-        position: fixed; top: 0; width: 100%; border-bottom: 1px solid rgba(212, 175, 55, 0.3); z-index: 1000;
-    }
-    .wa-avatar { width: 48px; height: 48px; border-radius: 50%; border: 2px solid #D4AF37; margin-right: 15px; }
-    .tool-card {
-        background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(212, 175, 55, 0.1);
-        padding: 25px; border-radius: 15px; margin-bottom: 20px;
-    }
-    .main-content { margin-top: 100px; margin-bottom: 100px; }
-    #MainMenu, header, footer {visibility: hidden;}
-    </style>
-    """, unsafe_allow_html=True)
-
-# 2. MOTOR OBRIGATÓRIO VERSÃO 2.5 (IDENTIFICADOR ATUALIZADO)
-# Este modelo carrega a inteligência 2.5 e suporta v1beta e v1
-MODELO_25 = "gemini-2.5-flash" 
-
-try:
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-except:
-    st.error("⚠️ Erro: GEMINI_API_KEY ausente nos Secrets!")
-
-# 3. MÓDULO DE VOZ ARIES
-def aries_voz(texto):
-    if not st.session_state.get("permitir_voz", True): return
-    try:
-        async def generate():
-            communicate = edge_tts.Communicate(texto, "pt-BR-FranciscaNeural")
-            audio_data = b""
-            async for chunk in communicate.stream():
-                if chunk["type"] == "audio": audio_data += chunk["data"]
-            return audio_data
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        audio_content = loop.run_until_complete(generate())
-        b64 = base64.b64encode(audio_content).decode()
-        st.markdown(f'<audio autoplay style="display:none"><source src="data:audio/mp3;base64,{b64}"></audio>', unsafe_allow_html=True)
-    except: pass
-
-# --- UI HEADER ---
-st.markdown(f'''
-    <div class="wa-header">
-        <img src="https://raw.githubusercontent.com/slowgamer14-dotcom/ARIES/main/aries_avatar.png" class="wa-avatar">
-        <div>
-            <p style="margin:0; font-weight:bold; color: #e9edef;">Aries v2.5 Pro ♈</p>
-            <p style="margin:0; font-size:11px; color: #D4AF37;">Motor Gemini 2.5 Atualizado | Estável</p>
-        </div>
-    </div>
-    ''', unsafe_allow_html=True)
-
-st.markdown('<div class="main-content">', unsafe_allow_html=True)
-
-# Abas padronizadas (Correção do NameError)
-abas = st.tabs(["💬 Chat 2.5", "🎬 Editor de Gameplay", "📊 Analytics"])
-
-with abas[0]:
-    if "messages" not in st.session_state: st.session_state.messages = []
-    for m in st.session_state.messages:
-        with st.chat_message(m["role"]): st.markdown(m["content"])
+# ... (Mantenha suas configurações de interface e API acima) ...
 
 with abas[1]:
     st.markdown('<div class="tool-card">', unsafe_allow_html=True)
-    st.markdown("<h3 style='color:#D4AF37;'>🎬 Editor LikaON - Motor 2.5</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='color:#D4AF37;'>🎬 Central de Edição LikaON</h3>", unsafe_allow_html=True)
     
-    video_file = st.file_uploader("Upload de Gameplay (Suporte 1GB):", type=['mp4', 'mkv', 'mov'])
+    video_file = st.file_uploader("Upload da Gameplay (Até 1GB):", type=['mp4', 'mkv', 'mov'])
     
     if video_file:
-        st.info(f"📂 Arquivo pronto para o Core 2.5: {video_file.name}")
+        st.info(f"📁 Vídeo carregado: {video_file.name}")
         
-        if st.button("🚀 Iniciar Análise Versão 2.5"):
-            with st.spinner("Aries 2.5 processando frames..."):
-                temp_name = "gameplay_aries.mp4"
-                with open(temp_name, "wb") as f:
+        if st.button("🚀 Aries 2.5: Cortar Susto"):
+            with st.spinner("Analisando e processando o corte..."):
+                # 1. Salva o arquivo original
+                temp_path = "video_original.mp4"
+                with open(temp_path, "wb") as f:
                     f.write(video_file.getbuffer())
                 
                 try:
-                    # Faz o upload para a API
-                    video_upload = genai.upload_file(path=temp_name)
+                    # 2. IA Analisa o vídeo
+                    video_ai = genai.upload_file(path=temp_path)
+                    while video_ai.state.name == "PROCESSING":
+                        time.sleep(10)
+                        video_ai = genai.get_file(video_ai.name)
                     
-                    placeholder = st.empty()
-                    # Aguarda o status ficar ACTIVE para evitar o 404 de processamento
-                    while video_upload.state.name == "PROCESSING":
-                        placeholder.warning("⏳ Motor 2.5 codificando vídeo de 1GB... Isso leva um momento.")
-                        time.sleep(15) 
-                        video_upload = genai.get_file(video_upload.name)
+                    model = genai.GenerativeModel("gemini-2.5-flash")
+                    # Prompt rígido para a IA retornar o tempo em formato padrão
+                    prompt = "Identifique o susto neste vídeo de Resident Evil. RESPONDA OBRIGATORIAMENTE NO FORMATO 'TEMPO: MM:SS' antes de qualquer descrição."
                     
-                    if video_upload.state.name == "ACTIVE":
-                        placeholder.success("✅ Vídeo Ativo no Core 2.5!")
+                    res = model.generate_content([video_ai, prompt])
+                    resposta_texto = res.text
+                    st.write(resposta_texto)
+                    
+                    # 3. Extração do Tempo (Regex)
+                    match = re.search(r'(\d{1,2}:\d{2})', resposta_texto)
+                    
+                    if match:
+                        tempo_susto = match.group(1)
+                        st.success(f"🎯 Susto detectado em: {tempo_susto}")
                         
-                        # Invocação do motor 2.5 estável
-                        model = genai.GenerativeModel(model_name=MODELO_25)
-                        prompt = "Aja como editor do canal LikaON. Encontre o susto nesta gameplay de Resident Evil e sugira um título épico."
+                        # 4. Corte Físico do Vídeo
+                        m, s = map(int, tempo_susto.split(':'))
+                        inicio = max(0, (m * 60) + s - 3) # 3 seg antes
+                        fim = inicio + 10 # 10 seg de clipe
                         
-                        res = model.generate_content([video_upload, prompt])
-                        st.markdown("### 🎯 Relatório Final Aries 2.5")
-                        st.write(res.text)
-                        aries_voz("Análise 2.5 concluída. Destaque localizado.")
+                        output_path = "susto_pronto_likaon.mp4"
+                        
+                        with VideoFileClip(temp_path) as video:
+                            clipe = video.subclip(inicio, fim)
+                            clipe.write_videofile(output_path, codec="libx264", audio_codec="aac")
+                        
+                        # 5. Botão de Download
+                        with open(output_path, "rb") as f:
+                            st.download_button(
+                                label="📥 BAIXAR VÍDEO PRONTO",
+                                data=f,
+                                file_name=f"susto_residente_evil_{tempo_susto}.mp4",
+                                mime="video/mp4"
+                            )
                     else:
-                        st.error("Erro: O processamento do vídeo falhou.")
-                
+                        st.warning("Aries analisou, mas não indicou um tempo exato para o corte.")
+                        
                 except Exception as e:
-                    st.error(f"Erro no Motor 2.5: {e}")
+                    st.error(f"Erro no processamento: {e}")
                 finally:
-                    if os.path.exists(temp_name):
-                        os.remove(temp_name)
+                    # Limpeza de arquivos temporários
+                    if os.path.exists(temp_path): os.remove(temp_path)
+                    # O arquivo output_path pode ser removido após o download se desejar
     st.markdown('</div>', unsafe_allow_html=True)
-
-st.markdown('</div>', unsafe_allow_html=True)
-
-# LÓGICA DO CHAT
-if p := st.chat_input("Comando para Aries 2.5..."):
-    st.session_state.messages.append({"role": "user", "content": p})
-    st.rerun()
-
-if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
-    model_chat = genai.GenerativeModel(MODELO_25)
-    response = model_chat.generate_content(st.session_state.messages[-1]["content"])
-    txt = response.text
-    st.session_state.messages.append({"role": "assistant", "content": txt})
-    aries_voz(txt)
-    st.rerun()
-
